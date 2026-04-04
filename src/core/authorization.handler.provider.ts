@@ -1,0 +1,44 @@
+// Licensed under MIT-style license (conceptual port of ASP.NET Core Authorization)
+
+import { AuthorizationHandlerContext } from "./authorization.handler.context.js";
+import { IAuthorizationHandler } from "./types.js";
+
+/**
+ * A type which can provide the IAuthorizationHandlers for an authorization request.
+ */
+export interface IAuthorizationHandlerProvider {
+  /**
+   * Return the handlers that will be called for the authorization request.
+   * @param context The AuthorizationHandlerContext.
+   * @returns A promise resolving to the list of handlers.
+   */
+  getHandlersAsync(context: AuthorizationHandlerContext): Promise<IAuthorizationHandler[]>;
+}
+
+/**
+ * The default implementation of a handler provider,
+ * which provides the IAuthorizationHandlers for an authorization request.
+ */
+export class DefaultAuthorizationHandlerProvider implements IAuthorizationHandlerProvider {
+  private readonly handlersPromise: Promise<IAuthorizationHandler[]>;
+
+  /**
+   * Creates a new instance of DefaultAuthorizationHandlerProvider.
+   * @param handlers The IAuthorizationHandlers.
+   */
+  constructor(handlers: IAuthorizationHandler[]) {
+    if (!handlers) {
+      throw new Error("handlers cannot be null");
+    }
+    this.handlersPromise = Promise.resolve(handlers);
+  }
+
+  /**
+   * Return the handlers that will be called for the authorization request.
+   * @param context The AuthorizationHandlerContext.
+   * @returns A promise resolving to the list of handlers.
+   */
+  public getHandlersAsync(context: AuthorizationHandlerContext): Promise<IAuthorizationHandler[]> {
+    return this.handlersPromise;
+  }
+}

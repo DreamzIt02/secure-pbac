@@ -1,0 +1,40 @@
+{
+  "name": "secure-pbac",
+  "version": "0.1.0",
+  "description": "Policy-Based Authorization Controller (PBAC) for Node.js in TypeScript",
+  "author": "Rejwanul Islam",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint . --ext .ts"
+  },
+  "keywords": [
+    "authorization",
+    "pbac",
+    "typescript",
+    "nodejs",
+    "security"
+  ],
+  "dependencies": {
+    "vitest": "^4.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.2",
+    "@vitest/coverage-v8": "4.1.2",
+    "eslint": "^10.0.0",
+    "typescript": "^5.5.0"
+  }
+}
