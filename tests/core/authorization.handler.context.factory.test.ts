@@ -1,57 +1,44 @@
-// tests/core/authorization.handler.context.factory.test.ts
-
 import { describe, it, expect } from "vitest";
-import {
-  DefaultAuthorizationHandlerContextFactory,
-  IAuthorizationHandlerContextFactory,
-  AuthorizationHandlerContext,
-} from "../../src/core/index.js";
-import { IAuthorizationRequirement } from "../../src/core/types.js";
+import { Claim, ClaimsIdentity, ClaimsPrincipal, ClaimTypes } from "../../src/claims/index.js";
+import { AuthorizationHandlerContext, DefaultAuthorizationHandlerContextFactory } from "../../src/core/index.js";
 
-class DummyRequirement implements IAuthorizationRequirement {
-  toString() {
-    return "DummyRequirement";
-  }
-}
+
+// Mock requirement
+class MockRequirement {}
 
 describe("DefaultAuthorizationHandlerContextFactory", () => {
-  it("should implement IAuthorizationHandlerContextFactory", () => {
-    const factory: IAuthorizationHandlerContextFactory =
-      new DefaultAuthorizationHandlerContextFactory();
-    expect(factory).toBeInstanceOf(DefaultAuthorizationHandlerContextFactory);
-    expect(factory.createContext).toBeTypeOf("function");
-  });
+  const user = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Name, "Alice")]));
+  const resource = { id: 42 };
 
-  it("should create an AuthorizationHandlerContext with requirements, user, and resource", () => {
+  it("creates AuthorizationHandlerContext with requirements, user, and resource", () => {
     const factory = new DefaultAuthorizationHandlerContextFactory();
-    const reqs = [new DummyRequirement()];
-    const user = { name: "alice" };
-    const resource = { id: 123 };
-
+    const reqs = [new MockRequirement()];
     const ctx = factory.createContext(reqs, user, resource);
 
     expect(ctx).toBeInstanceOf(AuthorizationHandlerContext);
-    expect(ctx.requirements).toEqual(reqs);
-    expect(ctx.user).toEqual(user);
-    expect(ctx.resource).toEqual(resource);
+    expect([...ctx.requirements]).toEqual(reqs);
+    expect(ctx.user).toBe(user);
+    expect(ctx.resource).toBe(resource);
   });
 
-  it("should handle empty requirements gracefully", () => {
+  it("freezes requirements array to prevent modification", () => {
     const factory = new DefaultAuthorizationHandlerContextFactory();
-    const ctx = factory.createContext([], { name: "bob" }, null);
+    const reqs = [new MockRequirement()];
+    const ctx = factory.createContext(reqs, user, null);
 
-    expect(ctx.requirements).toEqual([]);
-    expect(ctx.user).toEqual({ name: "bob" });
+    const frozenReqs = ctx.requirements as any;
+    expect(Object.isFrozen(frozenReqs)).toBe(true);
+
+    // Attempting to modify should throw
+    expect(() => frozenReqs.push(new MockRequirement())).toThrow();
+  });
+
+  it("creates context with empty requirements", () => {
+    const factory = new DefaultAuthorizationHandlerContextFactory();
+    const ctx = factory.createContext([], user, null);
+
+    expect([...ctx.requirements]).toEqual([]);
+    expect(ctx.user).toBe(user);
     expect(ctx.resource).toBeNull();
-    expect(ctx.pendingRequirements).toEqual([]);
-  });
-
-  it("should allow multiple requirements", () => {
-    const factory = new DefaultAuthorizationHandlerContextFactory();
-    const reqs = [new DummyRequirement(), new DummyRequirement()];
-    const ctx = factory.createContext(reqs, { name: "carol" }, "resourceX");
-
-    expect(ctx.requirements.length).toBe(2);
-    expect(ctx.pendingRequirements.length).toBe(2);
   });
 });

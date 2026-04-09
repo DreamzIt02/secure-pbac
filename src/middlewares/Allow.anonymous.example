@@ -1,0 +1,75 @@
+---
+
+### 1. `AllowAnonymous` Helper
+```ts
+export function AllowAnonymous(handler: Function) {
+  handler.__allowAnonymous = true;
+  return handler;
+}
+```
+
+---
+
+### 2. Update `useAuthorization` Middleware
+Modify the middleware to skip authorization if the handler has the `__allowAnonymous` flag:
+
+```ts
+export function useAuthorization(getRouteHandler: (req: IncomingMessage) => any) {
+  return async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+    try {
+      const user = (req as any).user;
+      const handler = getRouteHandler(req);
+
+      if (!handler) return next();
+
+      // Skip authorization if AllowAnonymous is set
+      if (handler.__allowAnonymous) return next();
+
+      const requirements: Iterable<IAuthorizationHandler> = handler.__requirements;
+      if (!requirements || isEmpty(requirements)) return next();
+
+      const context = new DefaultAuthorizationHandlerContextFactory().createContext(requirements, user, null);
+
+      for (const requirement of requirements) {
+        await requirement.handleAsync(context);
+        if (context.hasFailed) break;
+      }
+
+      if (context.hasSucceeded) return next();
+      return res.statusCode = 403, res.end("Forbidden");
+    } catch (err) {
+      res.statusCode = 500;
+      res.end("Authorization check failed");
+    }
+  };
+}
+```
+
+---
+
+### 3. Usage in Routes
+```ts
+import { routes } from "./routes.js";
+import { AllowAnonymous } from "./auth/allowAnonymous.js";
+
+function publicHandler(req, res) {
+  res.end("This route is open to everyone");
+}
+
+function secureHandler(req, res) {
+  res.end("This route requires authorization");
+}
+
+// Register routes
+routes["/public"] = AllowAnonymous(publicHandler);
+routes["/secure"] = Authorize([new ClaimsAuthorizationRequirement("role", ["Admin"])])(secureHandler);
+```
+
+---
+
+### 🔑 Key Points
+- `AllowAnonymous(handler)` marks a route as open.
+- Middleware checks `handler.__allowAnonymous` before enforcing requirements.
+- This mirrors ASP.NET Core’s `[AllowAnonymous]` attribute but in pure Node.js.
+
+---

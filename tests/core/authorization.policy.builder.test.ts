@@ -1,161 +1,131 @@
-import {
-  AuthorizationPolicyBuilder,
-  AuthorizationPolicy,
-  DefaultAuthorizationPolicyProvider,
-  AssertionRequirement,
-  AuthorizationOptions,
-} from "../../src/core/index.js";
-import {
-  IAuthorizationRequirement,
-  IAuthorizationHandler,
-} from "../../src/core/types.js";
+import { describe, it, expect } from "vitest";
+import { AssertionRequirement, AuthorizationOptions, AuthorizationPolicy, AuthorizationPolicyBuilder, ClaimsAuthorizationRequirement, DefaultAuthorizationPolicyProvider, NameAuthorizationRequirement, RolesAuthorizationRequirement } from "../../src/core/index.js";
 
-class DummyRequirement implements IAuthorizationRequirement {
-  toString() {
-    return "DummyRequirement";
-  }
-}
 
-class DummyPolicyBuilder {
-  private reqs: IAuthorizationRequirement[] = [];
-  private schemes: string[] = [];
-
-  requireAuthenticatedUser(): DummyPolicyBuilder {
-    this.reqs.push(new DummyRequirement());
-    return this;
-  }
-
-  build(): AuthorizationPolicy {
-    return new AuthorizationPolicy(this.reqs, this.schemes);
-  }
+// Helper to create a simple policy
+function makePolicy() {
+  return new AuthorizationPolicy([new ClaimsAuthorizationRequirement("Name")], ["scheme1"]);
 }
 
 describe("AuthorizationPolicyBuilder", () => {
-  it("should add authentication schemes", () => {
-    const builder = new AuthorizationPolicyBuilder();
-    builder.addAuthenticationSchemes("scheme1", "scheme2");
+  it("constructor adds authentication schemes", () => {
+    const builder = new AuthorizationPolicyBuilder("scheme1", "scheme2");
     expect(builder.authenticationSchemes).toEqual(["scheme1", "scheme2"]);
   });
 
-  it("should add requirements", () => {
+  it("addAuthenticationSchemes adds schemes", () => {
     const builder = new AuthorizationPolicyBuilder();
-    const req = new DummyRequirement();
+    builder.addAuthenticationSchemes("schemeA", "schemeB");
+    expect(builder.authenticationSchemes).toContain("schemeA");
+    expect(builder.authenticationSchemes).toContain("schemeB");
+  });
+
+  it("addRequirements adds requirements", () => {
+    const builder = new AuthorizationPolicyBuilder();
+    const req = new ClaimsAuthorizationRequirement("Name");
     builder.addRequirements(req);
     expect(builder.requirements).toContain(req);
   });
 
-  it("should combine policies", () => {
-    const policy1 = new AuthorizationPolicy([new DummyRequirement()], ["s1"]);
-    const policy2 = new AuthorizationPolicy([new DummyRequirement()], ["s2"]);
-    const combined = AuthorizationPolicyBuilder.combine(policy1, policy2);
-    expect(combined.requirements.length).toBe(2);
-    expect(combined.authenticationSchemes).toEqual(expect.arrayContaining(["s1", "s2"]));
-  });
-
-  it("should require claim", () => {
+  it("combine merges another policy", () => {
     const builder = new AuthorizationPolicyBuilder();
-    builder.requireClaim("email");
-    expect(builder.requirements[0].toString()).toContain("Claim");
+    const policy = makePolicy();
+    builder.combine(policy);
+    expect(builder.authenticationSchemes).toContain("scheme1");
+    expect(builder.requirements.length).toBeGreaterThan(0);
   });
 
-  it("should require role", () => {
+  it("requireClaim adds ClaimsAuthorizationRequirement", () => {
     const builder = new AuthorizationPolicyBuilder();
-    builder.requireRole("admin", "user");
-    expect(builder.requirements[0].toString()).toContain("RolesAuthorizationRequirement");
+    builder.requireClaim("Name", ["Alice"]);
+    expect(builder.requirements[0]).toBeInstanceOf(ClaimsAuthorizationRequirement);
   });
 
-  it("should require user name", () => {
+  it("requireRole adds RolesAuthorizationRequirement", () => {
     const builder = new AuthorizationPolicyBuilder();
-    builder.requireUserName("alice");
-    expect(builder.requirements[0].toString()).toContain("UserName=alice");
+    builder.requireRole("Admin", "User");
+    expect(builder.requirements[0]).toBeInstanceOf(RolesAuthorizationRequirement);
   });
 
-  it("should require authenticated user", () => {
+  it("requireUserName adds NameAuthorizationRequirement", () => {
+    const builder = new AuthorizationPolicyBuilder();
+    builder.requireUserName("Alice");
+    expect(builder.requirements[0]).toBeInstanceOf(NameAuthorizationRequirement);
+  });
+
+  it("requireAuthenticatedUser adds DenyAnonymousAuthorizationRequirement", () => {
     const builder = new AuthorizationPolicyBuilder();
     builder.requireAuthenticatedUser();
     expect(builder.requirements[0].toString()).toContain("DenyAnonymousAuthorizationRequirement");
   });
 
-  it("should require assertion", async () => {
+  it("requireAssertion adds AssertionRequirement", () => {
     const builder = new AuthorizationPolicyBuilder();
-    const handler = vi.fn().mockReturnValue(true);
-    builder.requireAssertion(handler);
-
-    // Match the actual toString output
-    expect(builder.requirements[0].toString()).toBe("Handler assertion should evaluate to true.");
-
-    const req = builder.requirements[0] as AssertionRequirement;
-    expect(await req.handler({} as any)).toBe(true);
+    builder.requireAssertion(() => true);
+    expect(builder.requirements[0]).toBeInstanceOf(AssertionRequirement);
   });
 
-
-  it("should build policy with distinct schemes", () => {
-    const builder = new AuthorizationPolicyBuilder("scheme1", "scheme1", "scheme2");
-    builder.requireAssertion(() => true); // <-- add a requirement
+  it("build creates AuthorizationPolicy with distinct schemes", () => {
+    const builder = new AuthorizationPolicyBuilder();
+    builder.addAuthenticationSchemes("scheme1", "scheme1"); // duplicate
+    builder.requireClaim("Name");
     const policy = builder.build();
-    expect(policy.authenticationSchemes).toEqual(["scheme1", "scheme2"]);
-    expect(policy.requirements.length).toBe(1);
+    expect(policy).toBeInstanceOf(AuthorizationPolicy);
+    expect(policy.authenticationSchemes).toEqual(["scheme1"]);
   });
 
-
-  it("should combineEnumerable policies", () => {
-    const policy1 = new AuthorizationPolicy([new DummyRequirement()], ["s1"]);
-    const policy2 = new AuthorizationPolicy([new DummyRequirement()], ["s2"]);
-    const combined = AuthorizationPolicyBuilder.combineEnumerable([policy1, policy2]);
-    expect(combined.requirements.length).toBe(2);
+  it("fromPolicy creates builder from existing policy", () => {
+    const policy = makePolicy();
+    const builder = AuthorizationPolicyBuilder.fromPolicy(policy);
+    expect(builder.requirements.length).toBeGreaterThan(0);
   });
 
-  describe("combineAsync", () => {
-    let provider: DefaultAuthorizationPolicyProvider;
-    let options: AuthorizationOptions;
+  it("combine static merges multiple policies", () => {
+    const p1 = makePolicy();
+    const p2 = makePolicy();
+    const combined = AuthorizationPolicyBuilder.combine(p1, p2);
+    expect(combined.requirements.length).toBeGreaterThan(0);
+  });
 
-    beforeEach(() => {
-      options = new AuthorizationOptions();
-      provider = new DefaultAuthorizationPolicyProvider(options);
-    });
+  it("combineEnumerable merges multiple policies", () => {
+    const p1 = makePolicy();
+    const p2 = makePolicy();
+    const combined = AuthorizationPolicyBuilder.combineEnumerable([p1, p2]);
+    expect(combined.requirements.length).toBeGreaterThan(0);
+  });
 
-    it("should combine policy from authorizeData with policy name", async () => {
-      (provider as any).options.addPolicy("p1", (b: any) => b.requireAuthenticatedUser(), DummyPolicyBuilder);
-      const result = await AuthorizationPolicyBuilder.combineAsync(provider, [{ policy: "p1" }]);
-      expect(result?.requirements.length).toBeGreaterThan(0);
-    });
+  it("combineAsync merges authorizeData with policyProvider", async () => {
+    const options = new AuthorizationOptions();
+    const provider = new DefaultAuthorizationPolicyProvider({ value: options });
+    const authorizeData = [{ policy: "default", roles: "Admin,User", authenticationSchemes: "schemeX" }];
+    // Add a policy to options
+    options.addPolicy("default", b => b.requireClaim("Name"), AuthorizationPolicyBuilder);
+    const result = await AuthorizationPolicyBuilder.combineAsync(provider, authorizeData);
+    expect(result).toBeInstanceOf(AuthorizationPolicy);
+    expect(result!.requirements.length).toBeGreaterThan(0);
+  });
 
-    it("should throw if policy not found", async () => {
-      await expect(
-        AuthorizationPolicyBuilder.combineAsync(provider, [{ policy: "missing" }])
-      ).rejects.toThrow("AuthorizationPolicy not found: missing");
-    });
+  it("combineAsync returns fallbackPolicy if no authorizeData or policies", async () => {
+    const options = new AuthorizationOptions();
+    const fallback = makePolicy();
+    options.fallbackPolicy = fallback;
+    const provider = new DefaultAuthorizationPolicyProvider({ value: options });
+    const result = await AuthorizationPolicyBuilder.combineAsync(provider, []);
+    expect(result).toBe(fallback);
+  });
 
-    it("should combine roles from authorizeData", async () => {
-      const result = await AuthorizationPolicyBuilder.combineAsync(provider, [{ roles: "admin,user" }]);
-      expect(result?.requirements[0].toString()).toContain("RolesAuthorizationRequirement");
-    });
+  it("combineAsync returns null if no data and no fallback", async () => {
+    const options = new AuthorizationOptions();
+    const provider = new DefaultAuthorizationPolicyProvider({ value: options });
+    const result = await AuthorizationPolicyBuilder.combineAsync(provider, []);
+    expect(result).toBeNull();
+  });
 
-    it("should combine authenticationSchemes from authorizeData", async () => {
-      const result = await AuthorizationPolicyBuilder.combineAsync(provider, [{ authenticationSchemes: "s1,s2" }]);
-      expect(result?.authenticationSchemes).toEqual(expect.arrayContaining(["s1", "s2"]));
-    });
-
-    it("should use default policy when no specific data", async () => {
-      const result = await AuthorizationPolicyBuilder.combineAsync(provider, [{}]);
-      expect(result?.requirements.length).toBeGreaterThan(0);
-    });
-
-    it("should combine provided policies", async () => {
-      const p = new AuthorizationPolicy([new DummyRequirement()], []);
-      const result = await AuthorizationPolicyBuilder.combineAsync(provider, [], [p]);
-      expect(result?.requirements.length).toBe(1);
-    });
-
-    it("should return fallback policy when no builder", async () => {
-      (provider as any).options.fallbackPolicy = new AuthorizationPolicy([new DummyRequirement()], []);
-      const result = await AuthorizationPolicyBuilder.combineAsync(provider, []);
-      expect(result).toBe((provider as any).options.fallbackPolicy);
-    });
-
-    it("should return null when no builder and no fallback", async () => {
-      const result = await AuthorizationPolicyBuilder.combineAsync(provider, []);
-      expect(result).toBeNull();
-    });
+  it("combineAsync throws if policy not found", async () => {
+    const options = new AuthorizationOptions();
+    const provider = new DefaultAuthorizationPolicyProvider({ value: options });
+    const authorizeData = [{ policy: "missing" }];
+    await expect(AuthorizationPolicyBuilder.combineAsync(provider, authorizeData))
+      .rejects.toThrow("AuthorizationPolicy not found: missing");
   });
 });

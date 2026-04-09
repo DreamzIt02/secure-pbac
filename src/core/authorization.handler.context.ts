@@ -1,7 +1,9 @@
 // Licensed under MIT-style license (conceptual port of ASP.NET Core Authorization)
 
-import { IAuthorizationRequirement } from "./types.js";
-import { AuthorizationFailureReason } from "./authorization.failure.js";
+import { ClaimsPrincipal } from "../claims/claims.principal.js";
+import { ArgumentNullThrowHelper } from "../types/exception.js";
+import { AuthorizationFailureReason } from "./authorization.failure.reason.js";
+import { IAuthorizationRequirement } from "./types/index.js";
 
 /**
  * Contains authorization information used by IAuthorizationHandler.
@@ -19,41 +21,40 @@ export class AuthorizationHandlerContext {
    * @param resource An optional resource to evaluate the requirements against.
    */
   constructor(
-    private readonly _requirements: readonly IAuthorizationRequirement[],
-    private readonly _user: any,
-    private readonly _resource?: any
+    private readonly _requirements: Iterable<IAuthorizationRequirement>,
+    private readonly _user: ClaimsPrincipal,
+    private readonly _resource: object | null
   ) {
-    if (!_requirements) {
-      throw new Error("requirements cannot be null");
-    }
+    ArgumentNullThrowHelper.throwIfNull(_requirements);
+
     this._pendingRequirements = new Set(_requirements);
   }
 
   /**
    * The collection of all the IAuthorizationRequirement for the current authorization action.
    */
-  public get requirements(): readonly IAuthorizationRequirement[] {
+  public get requirements(): Iterable<IAuthorizationRequirement> {
     return this._requirements;
   }
 
   /**
    * The representation of the current user.
    */
-  public get user(): any {
+  public get user(): ClaimsPrincipal {
     return this._user;
   }
  
   /**
    * The optional resource to evaluate the requirements against.
    */
-  public get resource(): any {
+  public get resource(): object | null {
     return this._resource;
   }
 
   /**
    * Gets the requirements that have not yet been marked as succeeded.
    */
-  public get pendingRequirements(): IAuthorizationRequirement[] {
+  public get pendingRequirements(): Iterable<IAuthorizationRequirement> {
     return Array.from(this._pendingRequirements);
   }
 
@@ -86,6 +87,9 @@ export class AuthorizationHandlerContext {
   public fail(reason?: AuthorizationFailureReason): void {
     this._failCalled = true;
     if (reason) {
+      if (!this._failedReasons)
+          this._failedReasons = [];
+
       this._failedReasons.push(reason);
     }
   }

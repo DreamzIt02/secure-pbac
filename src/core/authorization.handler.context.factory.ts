@@ -1,7 +1,8 @@
 // Licensed under MIT-style license (conceptual port of ASP.NET Core Authorization)
 
-import { IAuthorizationRequirement } from "./types.js";
+import { ClaimsPrincipal } from "../claims/claims.principal.js";
 import { AuthorizationHandlerContext } from "./authorization.handler.context.js";
+import { IAuthorizationRequirement } from "./types/index.js";
 
 /**
  * A type used to provide an AuthorizationHandlerContext used for authorization.
@@ -16,9 +17,9 @@ export interface IAuthorizationHandlerContextFactory {
    * @returns The AuthorizationHandlerContext.
    */
   createContext(
-    requirements: readonly IAuthorizationRequirement[],
-    user: any,
-    resource: any
+    requirements: Iterable<IAuthorizationRequirement>,
+    user: ClaimsPrincipal,
+    resource: object | null
   ): AuthorizationHandlerContext;
 }
 
@@ -36,10 +37,10 @@ export class DefaultAuthorizationHandlerContextFactory
    * @returns The AuthorizationHandlerContext.
    */
   public createContext(
-    requirements: readonly IAuthorizationRequirement[],
-    user: any,
-    resource: any
+    requirements: Iterable<IAuthorizationRequirement>,
+    user: ClaimsPrincipal,
+    resource: object | null
   ): AuthorizationHandlerContext {
-    return new AuthorizationHandlerContext(requirements, user, resource);
+    return new AuthorizationHandlerContext(Object.freeze([...requirements]), user, resource);
   }
 }

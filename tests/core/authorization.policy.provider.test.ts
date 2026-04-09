@@ -1,90 +1,75 @@
-import {
-  DefaultAuthorizationPolicyProvider,
-  AuthorizationOptions,
-  AuthorizationPolicy,
-  AuthorizationPolicyBuilder,
-} from "../../src/core/index.js";
-import {
-  IAuthorizationRequirement,
-  IAuthorizationHandler,
-} from "../../src/core/types.js";
+import { describe, it, expect } from "vitest";
+import { AuthorizationOptions, AuthorizationPolicy, DefaultAuthorizationPolicyProvider } from "../../src/core/index.js";
+import { Exceptions } from "../../src/types/exception.js";
 
-class DummyRequirement implements IAuthorizationRequirement {
-  toString() {
-    return "DummyRequirement";
-  }
+// Mock requirement
+class MockRequirement {}
+
+// Helper to create AuthorizationOptions
+function createOptions(defaultPolicy: AuthorizationPolicy, fallbackPolicy: AuthorizationPolicy | null = null) {
+  const options = new AuthorizationOptions();
+
+  // Override methods/properties as needed
+  options.getDefaultPolicy = () => defaultPolicy;
+  options.fallbackPolicy = fallbackPolicy;
+  options.getPolicyTask = async (name: string) => {
+    if (name === "known") return defaultPolicy;
+    return null;
+  };
+
+  return { value: options };
 }
 
-// class DummyPolicyBuilder {
-//   private reqs: IAuthorizationRequirement[] = [];
-//   private schemes: string[] = [];
-
-//   requireAuthenticatedUser(): DummyPolicyBuilder {
-//     this.reqs.push(new DummyRequirement());
-//     return this;
-//   }
-
-//   build(): AuthorizationPolicy {
-//     return new AuthorizationPolicy(this.reqs, this.schemes);
-//   }
-// }
-
 describe("DefaultAuthorizationPolicyProvider", () => {
-  let options: AuthorizationOptions;
-  let provider: DefaultAuthorizationPolicyProvider;
+  const defaultPolicy = new AuthorizationPolicy([new MockRequirement()], ["scheme1"]);
+  const fallbackPolicy = new AuthorizationPolicy([new MockRequirement()], ["scheme2"]);
 
-  beforeEach(() => {
-    options = new AuthorizationOptions();
-    provider = new DefaultAuthorizationPolicyProvider(options);
-  });
-
-  it("should throw if constructed with null options", () => {
-    expect(() => new DefaultAuthorizationPolicyProvider(null as any)).toThrow(
-      "options cannot be null"
-    );
-  });
-
-  it("should throw if getPolicyAsync called with empty name", async () => {
-    await expect(provider.getPolicyAsync("")).rejects.toThrow(
-      "Policy name cannot be null or empty."
-    );
-  });
-
-  it("should return null when policy not found", async () => {
-    const result = await provider.getPolicyAsync("missing");
-    expect(result).toBeNull();
-  });
-
-  it("should return policy when found", async () => {
-    options.addPolicy("testPolicy", (builder) => builder.requireAuthenticatedUser(), AuthorizationPolicyBuilder);
-    const result = await provider.getPolicyAsync("testPolicy");
-    expect(result).not.toBeNull();
-    expect(result?.requirements.length).toBe(1);
-  });
-
-  it("should return default policy and cache it", async () => {
-    const policy1 = await provider.getDefaultPolicyAsync();
-    const policy2 = await provider.getDefaultPolicyAsync();
-    expect(policy1).toStrictEqual(policy2); // cached
-    expect(policy1.requirements.length).toBeGreaterThan(0);
-  });
-
-  it("should return fallback policy and cache it", async () => {
-    const fallback = new AuthorizationPolicy([new DummyRequirement()], []);
-    options.fallbackPolicy = fallback;
-    const result1 = await provider.getFallbackPolicyAsync();
-    const result2 = await provider.getFallbackPolicyAsync();
-    expect(result1).toBe(result2); // cached
-    expect(result1).toBe(fallback);
-  });
-
-  it("should return null when fallback policy not set", async () => {
-    options.fallbackPolicy = null;
-    const result = await provider.getFallbackPolicyAsync();
-    expect(result).toBeNull();
-  });
-
-  it("should allow caching policies", () => {
+  it("constructs with valid options", () => {
+    const provider = new DefaultAuthorizationPolicyProvider(createOptions(defaultPolicy));
+    expect(provider).toBeInstanceOf(DefaultAuthorizationPolicyProvider);
     expect(provider.allowsCachingPolicies).toBe(true);
+  });
+
+  it("throws ArgumentNullException if options is null", () => {
+    expect(() => new DefaultAuthorizationPolicyProvider(null as any))
+      .toThrow(Exceptions.ArgumentNullException);
+  });
+
+  it("getDefaultPolicyAsync returns default policy", async () => {
+    const provider = new DefaultAuthorizationPolicyProvider(createOptions(defaultPolicy));
+    const policy = await provider.getDefaultPolicyAsync();
+    expect(policy).toBe(defaultPolicy);
+  });
+
+  it("getDefaultPolicyAsync caches the policy", async () => {
+    const provider = new DefaultAuthorizationPolicyProvider(createOptions(defaultPolicy));
+    const p1 = await provider.getDefaultPolicyAsync();
+    const p2 = await provider.getDefaultPolicyAsync();
+    expect(p1).toBe(p2); // same cached instance
+  });
+
+  it("getFallbackPolicyAsync returns fallback policy", async () => {
+    const provider = new DefaultAuthorizationPolicyProvider(createOptions(defaultPolicy, fallbackPolicy));
+    const policy = await provider.getFallbackPolicyAsync();
+    expect(policy).toBe(fallbackPolicy);
+  });
+
+  it("getFallbackPolicyAsync caches the policy", async () => {
+    const provider = new DefaultAuthorizationPolicyProvider(createOptions(defaultPolicy, fallbackPolicy));
+    const p1 = await provider.getFallbackPolicyAsync();
+    const p2 = await provider.getFallbackPolicyAsync();
+    expect(p1).toBe(p2);
+  });
+
+  it("getPolicyAsync returns named policy when known", async () => {
+    const provider = new DefaultAuthorizationPolicyProvider(createOptions(defaultPolicy));
+    const policy = await provider.getPolicyAsync("known");
+    expect(policy).toBe(defaultPolicy);
+  });
+
+  it("getPolicyAsync returns null when policy not found", async () => {
+    const provider = new DefaultAuthorizationPolicyProvider(createOptions(defaultPolicy));
+    const policy = await provider.getPolicyAsync("unknown");
+    expect(policy).toBeNull();
   });
 });

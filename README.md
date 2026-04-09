@@ -44,7 +44,7 @@ npm install secure-pbac
 - `roles/` → Role enums and utilities  
 - `claims/` → Claim enums, types, priorities  
 - `policies/` → PolicyEnum, GroupPolicyEnum, mapping logic  
-- `services/` → PolicyAuthorizeService with async validation  
+- `services/` → PolicyAuthorizationService with async validation  
 - `filters/` → Express/NestJS middleware for policy enforcement  
 - `resource/` → ResourceManager and ResourceOwner handlers  
 - `dynamic/` → MinimumAgeAuthorize and policy provider  

@@ -1,0 +1,118 @@
+In **NestJS**, we don’t need to reinvent the wheel — the framework already has a clean way to plug in global middleware and route‑level guards. We can adapt our `useAuthorization()` logic into a **custom NestJS guard** that enforces our self‑handling requirements (`ClaimsAuthorizationRequirement`, `RolesAuthorizationRequirement`).
+
+---
+
+## 1. Create an Authorization Guard
+```ts
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { AuthorizationHandlerContext, DefaultAuthorizationHandlerContextFactory } from '../core';
+import { IAuthorizationHandler } from '../core/types';
+
+@Injectable()
+export class AuthorizationGuard implements CanActivate {
+  constructor(private readonly requirements: IAuthorizationHandler[] = []) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const req = context.switchToHttp().getRequest();
+    const user = req.user; // ClaimsPrincipal attached by authentication middleware
+
+    if (!user) throw new UnauthorizedException();
+
+    if (!this.requirements || this.requirements.length === 0) return true;
+
+    const authContext = new DefaultAuthorizationHandlerContextFactory().createContext(
+      this.requirements,
+      user,
+      null,
+    );
+
+    for (const requirement of this.requirements) {
+      await requirement.handleAsync(authContext);
+      if (authContext.hasFailed) break;
+    }
+
+    if (authContext.hasSucceeded) return true;
+    throw new ForbiddenException();
+  }
+}
+```
+
+---
+
+## 2. Define a Decorator
+```ts
+import { applyDecorators, UseGuards } from '@nestjs/common';
+import { AuthorizationGuard } from './authorization.guard';
+import { IAuthorizationHandler } from '../core/types';
+
+export function Authorize(requirements: IAuthorizationHandler[]) {
+  return applyDecorators(UseGuards(new AuthorizationGuard(requirements)));
+}
+```
+
+---
+
+## 3. Apply Globally in `main.ts`
+```ts
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { AuthorizationGuard } from './auth/authorization.guard';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  // Global guard (like app.useAuthorization())
+  app.useGlobalGuards(new AuthorizationGuard([
+    // Example global requirement
+    // new ClaimsAuthorizationRequirement("role", ["User"])
+  ]));
+
+  await app.listen(3000);
+}
+bootstrap();
+```
+
+---
+
+## 4. Use Route‑Level Decorators
+```ts
+import { Controller, Get } from '@nestjs/common';
+import { Authorize } from './auth/authorize.decorator';
+import { ClaimsAuthorizationRequirement } from './requirements/claims';
+import { RolesAuthorizationRequirement } from './requirements/roles';
+
+@Controller()
+export class AdminController {
+  @Get('admin')
+  @Authorize([new RolesAuthorizationRequirement(['Admin'])])
+  getAdminData() {
+    return 'Admin-only data';
+  }
+
+  @Get('finance')
+  @Authorize([new ClaimsAuthorizationRequirement('department', ['Finance'])])
+  getFinanceData() {
+    return 'Finance department data';
+  }
+}
+```
+
+---
+
+### 🔑 Key Points
+- **Global pipeline**: `app.useGlobalGuards(new AuthorizationGuard([...]))` in `main.ts` → equivalent to `app.useAuthorization()`.
+- **Route‑level requirements**: `@Authorize([...])` decorator attaches specific requirements to a route.
+- **Self‑handling requirements**: `ClaimsAuthorizationRequirement` and `RolesAuthorizationRequirement` evaluate themselves inside the guard.
+
+---
+
+This gives us the **ASP.NET Core‑style pipeline in NestJS**:  
+- Global `UseAuthorization()` via `useGlobalGuards`.  
+- Route‑specific `[Authorize(...)]` via decorators.  
+- Requirements are self‑handling, so no extra handler classes are needed.  

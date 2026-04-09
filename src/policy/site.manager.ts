@@ -1,13 +1,11 @@
 // site-manager.ts
 
 import { AuthorizeClaimEnum, AuthorizeClaimPriorityEnum, Claim, SiteClaim } from "../claims/index.js";
-import { User as IdentityUser } from '../core/identity/index.js';
+import { IdentityUser } from "../core/types/index.js";
 
-export interface IUser extends IdentityUser {
+export interface ISiteUser extends IdentityUser { }
 
-}
-
-export class PriorManagers<T extends IUser = IUser> {
+export class PriorManagers<T extends ISiteUser = ISiteUser> {
   A: T[] = [];
   B: T[] = [];
   C: T[] = [];
@@ -41,7 +39,7 @@ export class SiteManager {
   /**
    * Selection logic (ported from C#)
    */
-  static select<T extends IUser>(
+  static select<T extends ISiteUser>(
     managers: PriorManagers<T>,
     total: number,
     solved: number
@@ -89,6 +87,6 @@ export class SiteManager {
     provider: AuthorizeClaimEnum,
     value?: AuthorizeClaimPriorityEnum | null
   ): Claim {
-    return { type: this.priorManagerClaimType(provider), value: value == null ? '' : String(value), };
+    return new Claim(this.priorManagerClaimType(provider), value == null ? '' : String(value));
   }
 }

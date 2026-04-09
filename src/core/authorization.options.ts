@@ -1,13 +1,13 @@
 // Licensed under MIT-style license (conceptual port of ASP.NET Core Authorization)
 
+import { ArgumentNullThrowHelper } from "../types/exception.js";
 import { AuthorizationPolicy } from "./authorization.policy.js";
 
 /**
  * Provides programmatic configuration used by IAuthorizationService and IAuthorizationPolicyProvider.
  */
 export class AuthorizationOptions {
-  private static readonly nullPolicyPromise: Promise<AuthorizationPolicy | null> =
-    Promise.resolve(null);
+  private static readonly nullPolicyPromise: Promise<AuthorizationPolicy | null> = Promise.resolve(null);
 
   private policyMap: Map<string, Promise<AuthorizationPolicy | null>> = new Map();
 
@@ -55,12 +55,8 @@ export class AuthorizationOptions {
     configurePolicy: (builder: PolicyBuilder) => void,
     builderCtor: new () => PolicyBuilder
   ): void {
-    if (!name) {
-      throw new Error("Policy name cannot be null or empty.");
-    }
-    if (!configurePolicy) {
-      throw new Error("configurePolicy delegate cannot be null.");
-    }
+    ArgumentNullThrowHelper.throwIfNullOrEmpty(name);
+    ArgumentNullThrowHelper.throwIfNull(configurePolicy);
 
     const policyBuilder = new builderCtor();
     configurePolicy(policyBuilder);
@@ -73,9 +69,8 @@ export class AuthorizationOptions {
    * @returns The policy for the specified name, or null if a policy with the name does not exist.
    */
   public async getPolicy(name: string): Promise<AuthorizationPolicy | null> {
-    if (!name) {
-      throw new Error("Policy name cannot be null or empty.");
-    }
+    ArgumentNullThrowHelper.throwIfNullOrEmpty(name);
+
     const value = this.policyMap.get(name);
     return value ? await value : null;
   }
@@ -86,9 +81,8 @@ export class AuthorizationOptions {
    * @returns A Promise resolving to the policy, or null if not found.
    */
   getPolicyTask(name: string): Promise<AuthorizationPolicy | null> {
-    if (!name) {
-      throw new Error("Policy name cannot be null or empty.");
-    }
+    ArgumentNullThrowHelper.throwIfNull(name);
+  
     const value = this.policyMap.get(name);
     return value ?? AuthorizationOptions.nullPolicyPromise;
   }

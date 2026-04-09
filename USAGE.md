@@ -410,7 +410,7 @@ export function hapiFilter(filterFn: (user: IUser) => Promise<boolean>) {
 ```ts
 @Injectable({ providedIn: 'root' })
 export class PolicyGuard implements CanActivate {
-  constructor(private router: Router, private policyService: PolicyAuthorizeService) {}
+  constructor(private router: Router, private policyService: PolicyAuthorizationService) {}
 
   async canActivate(): Promise<boolean> {
     const user = (window as any).currentUser;

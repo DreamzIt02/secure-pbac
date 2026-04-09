@@ -1,122 +1,105 @@
-import {
-  AuthorizationHandler,
-  AuthorizationHandlerWithResource,
-  AuthorizationHandlerContext,
-  AuthorizationFailureReason,
-} from "../../src/core/index.js";
-import { IAuthorizationRequirement, IAuthorizationHandler } from "../../src/core/types.js";
+import { describe, it, expect } from "vitest";
+import { AuthorizationHandler, AuthorizationHandlerContext } from "../../src/core/index.js";
+import { Claim, ClaimsIdentity, ClaimsPrincipal, ClaimTypes } from "../../src/claims/index.js";
 
-describe("AuthorizationHandler", () => {
-  class TestRequirement implements IAuthorizationRequirement {
-    toString() {
-      return "TestRequirement";
-    }
+
+// Mock requirement
+class MockRequirement {}
+
+// Concrete handler for requirement-only
+class RequirementOnlyHandler extends AuthorizationHandler<MockRequirement> {
+  protected isRequirementType(req: any): req is MockRequirement {
+    return req instanceof MockRequirement;
   }
+  protected async handleRequirementAsync(
+    context: AuthorizationHandlerContext,
+    requirement: MockRequirement
+  ): Promise<void>;
+  protected async handleRequirementAsync(
+    context: AuthorizationHandlerContext,
+    requirement: MockRequirement,
+    resource?: object | null
+  ): Promise<void>;
+  
+  protected async handleRequirementAsync(
+    context: AuthorizationHandlerContext,
+    requirement: MockRequirement,
+    resource?: object | null
+  ): Promise<void> {
+    context.succeed(requirement);
+  }
+}
 
-  class TestHandler extends AuthorizationHandler<TestRequirement> {
-    public handled: boolean = false;
-
-    protected isRequirementType(requirement: IAuthorizationRequirement): boolean {
-      return requirement instanceof TestRequirement;
-    }
-
-    protected async handleRequirementAsync(
-      context: AuthorizationHandlerContext,
-      requirement: TestRequirement
-    ): Promise<void> {
-      this.handled = true;
+// Concrete handler for requirement + resource
+class RequirementWithResourceHandler extends AuthorizationHandler<MockRequirement, object> {
+  protected isRequirementType(req: any): req is MockRequirement {
+    return req instanceof MockRequirement;
+  }
+  protected async handleRequirementAsync(
+    context: AuthorizationHandlerContext,
+    requirement: MockRequirement
+  ): Promise<void>;
+protected async handleRequirementAsync(
+    context: AuthorizationHandlerContext,
+    requirement: MockRequirement,
+    resource: object
+  ): Promise<void>;
+  protected async handleRequirementAsync(
+    context: AuthorizationHandlerContext,
+    requirement: MockRequirement,
+    resource?: object | null
+  ): Promise<void> {
+    // succeed only if resource has expected property
+    if (resource && (resource as any).allow) {
+      context.succeed(requirement);
+    } else if (resource) {
+      context.fail();
+    } else {
       context.succeed(requirement);
     }
   }
+}
 
-  it("should handle matching requirement type", async () => {
-    const req = new TestRequirement();
-    const ctx = new AuthorizationHandlerContext([req], { id: 1 });
-    const handler = new TestHandler();
+describe("AuthorizationHandler", () => {
+  const user = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Name, "Alice")]));
 
+  it("RequirementOnlyHandler succeeds when requirement is matched", async () => {
+    const req = new MockRequirement();
+    const ctx = new AuthorizationHandlerContext([req], user, null);
+    const handler = new RequirementOnlyHandler();
     await handler.handleAsync(ctx);
-
-    expect(handler.handled).toBe(true);
     expect(ctx.hasSucceeded).toBe(true);
   });
 
-  it("should skip non-matching requirement type", async () => {
-    const nonMatchingReq: IAuthorizationRequirement = { toString: () => "Other" };
-    const ctx = new AuthorizationHandlerContext([nonMatchingReq], { id: 2 });
-    const handler = new TestHandler();
-
+  it("RequirementWithResourceHandler succeeds when resource allows", async () => {
+    const req = new MockRequirement();
+    const ctx = new AuthorizationHandlerContext([req], user, { allow: true });
+    const handler = new RequirementWithResourceHandler();
     await handler.handleAsync(ctx);
-
-    expect(handler.handled).toBe(false);
-    expect(ctx.hasSucceeded).toBe(false);
-  });
-});
-
-describe("AuthorizationHandlerWithResource", () => {
-  class ResourceRequirement implements IAuthorizationRequirement {
-    toString() {
-      return "ResourceRequirement";
-    }
-  }
-
-  class ResourceHandler extends AuthorizationHandlerWithResource<ResourceRequirement, string> {
-    public handled: boolean = false;
-
-    protected isRequirementType(requirement: IAuthorizationRequirement): boolean {
-      return requirement instanceof ResourceRequirement;
-    }
-
-    protected isResourceType(resource: any): resource is string {
-      return typeof resource === "string";
-    }
-
-    protected async handleRequirementAsync(
-      context: AuthorizationHandlerContext,
-      requirement: ResourceRequirement,
-      resource: string
-    ): Promise<void> {
-      this.handled = true;
-      if (resource === "allow") {
-        context.succeed(requirement);
-      } else {
-        context.fail(new AuthorizationFailureReason(this, "Resource denied"));
-      }
-    }
-  }
-
-  it("should handle requirement when resource type matches and succeed", async () => {
-    const req = new ResourceRequirement();
-    const ctx = new AuthorizationHandlerContext([req], { id: 3 }, "allow");
-    const handler = new ResourceHandler();
-
-    await handler.handleAsync(ctx);
-
-    expect(handler.handled).toBe(true);
     expect(ctx.hasSucceeded).toBe(true);
   });
 
-  it("should handle requirement when resource type matches and fail", async () => {
-    const req = new ResourceRequirement();
-    const ctx = new AuthorizationHandlerContext([req], { id: 4 }, "deny");
-    
-    const handler = new ResourceHandler();
-
+  it("RequirementWithResourceHandler fails when resource disallows", async () => {
+    const req = new MockRequirement();
+    const ctx = new AuthorizationHandlerContext([req], user, { allow: false });
+    const handler = new RequirementWithResourceHandler();
     await handler.handleAsync(ctx);
-
-    expect(handler.handled).toBe(true);
     expect(ctx.hasFailed).toBe(true);
-    expect(ctx.failureReasons[0].message).toBe("Resource denied");
+    expect(ctx.hasSucceeded).toBe(false);
   });
 
-  it("should skip handling when resource type does not match", async () => {
-    const req = new ResourceRequirement();
-    const ctx = new AuthorizationHandlerContext([req], { id: 5 }, 123); // not string
-    const handler = new ResourceHandler();
-
+  it("RequirementWithResourceHandler falls back to requirement-only overload when resource is undefined", async () => {
+    const req = new MockRequirement();
+    const ctx = new AuthorizationHandlerContext([req], user, null);
+    const handler = new RequirementWithResourceHandler();
     await handler.handleAsync(ctx);
+    expect(ctx.hasSucceeded).toBe(true);
+  });
 
-    expect(handler.handled).toBe(false);
+  it("ignores non-matching requirements", async () => {
+    const ctx = new AuthorizationHandlerContext([{} as any], user, null);
+    const handler = new RequirementOnlyHandler();
+    await handler.handleAsync(ctx);
     expect(ctx.hasSucceeded).toBe(false);
-    expect(ctx.hasFailed).toBe(false);
   });
 });

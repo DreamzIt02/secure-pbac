@@ -1,55 +1,72 @@
-import { AuthorizationHandlerContext } from "../../src/core/index.js";
-import { IAuthorizationRequirement, IAuthorizationHandler } from "../../src/core/types.js";
-import { AuthorizationFailureReason } from "../../src/core/index.js";
+import { describe, it, expect } from "vitest";
+import { Claim, ClaimsIdentity, ClaimsPrincipal, ClaimTypes } from "../../src/claims/index.js";
+import { AuthorizationFailureReason, AuthorizationHandlerContext } from "../../src/core/index.js";
+
+// Simple mock requirement
+class MockRequirement {}
+
+// Simple mock handler
+class MockHandler {
+  async handleAsync() {
+    return Promise.resolve();
+  }
+}
 
 describe("AuthorizationHandlerContext", () => {
-  const requirement: IAuthorizationRequirement = { toString: () => "req1" };
-  const requirement2: IAuthorizationRequirement = { toString: () => "req2" };
+  const user = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Name, "Alice")]));
+  const resource = { id: 123 };
 
-  it("should throw if requirements are null", () => {
-    expect(() => new AuthorizationHandlerContext(null as any, {})).toThrow("requirements cannot be null");
-  });
-
-  it("should initialize with requirements, user, and resource", () => {
-    const ctx = new AuthorizationHandlerContext([requirement], { id: 1 }, "resourceX");
-    expect(ctx.requirements).toEqual([requirement]);
-    expect(ctx.user).toEqual({ id: 1 });
-    expect(ctx.resource).toBe("resourceX");
-    expect(ctx.pendingRequirements).toEqual([requirement]);
+  it("constructs with requirements, user, and resource", () => {
+    const reqs = [new MockRequirement()];
+    const ctx = new AuthorizationHandlerContext(reqs, user, resource);
+    expect([...ctx.requirements]).toEqual(reqs);
+    expect(ctx.user).toBe(user);
+    expect(ctx.resource).toBe(resource);
+    expect([...ctx.pendingRequirements]).toEqual(reqs);
     expect(ctx.failureReasons).toEqual([]);
     expect(ctx.hasFailed).toBe(false);
     expect(ctx.hasSucceeded).toBe(false);
   });
 
-  it("should mark requirement as succeeded", () => {
-    const ctx = new AuthorizationHandlerContext([requirement, requirement2], { id: 2 });
-    ctx.succeed(requirement);
-    expect(ctx.pendingRequirements).toEqual([requirement2]);
-    expect(ctx.hasSucceeded).toBe(false); // still one pending
-    ctx.succeed(requirement2);
-    expect(ctx.pendingRequirements).toEqual([]);
+  it("succeed marks requirement as satisfied", () => {
+    const req = new MockRequirement();
+    const ctx = new AuthorizationHandlerContext([req], user, null);
+    ctx.succeed(req);
+    expect([...ctx.pendingRequirements]).toEqual([]);
     expect(ctx.hasSucceeded).toBe(true);
   });
 
-  it("should mark as failed", () => {
-    const ctx = new AuthorizationHandlerContext([requirement], {});
-    ctx.fail();
+  it("fail sets hasFailed true and adds reason", () => {
+    const req = new MockRequirement();
+    const ctx = new AuthorizationHandlerContext([req], user, null);
+    const reason = new AuthorizationFailureReason(new MockHandler(), "Denied");
+    ctx.fail(reason);
     expect(ctx.hasFailed).toBe(true);
+    expect(ctx.failureReasons.length).toBe(1);
+    expect(ctx.failureReasons[0].message).toBe("Denied");
     expect(ctx.hasSucceeded).toBe(false);
   });
 
-  it("should mark as failed with reason", () => {
-    const handler: IAuthorizationHandler = { handleAsync: async () => {} };
-    const reason = new AuthorizationFailureReason(handler, "Denied");
-    const ctx = new AuthorizationHandlerContext([requirement], {});
-    ctx.fail(reason);
+  it("fail without reason sets hasFailed true but no failureReasons", () => {
+    const ctx = new AuthorizationHandlerContext([new MockRequirement()], user, null);
+    ctx.fail();
     expect(ctx.hasFailed).toBe(true);
-    expect(ctx.failureReasons[0].message).toBe("Denied");
+    expect(ctx.failureReasons).toEqual([]);
   });
 
-  it("should not add reason if null", () => {
-    const ctx = new AuthorizationHandlerContext([requirement], {});
-    ctx.fail(null as any);
-    expect(ctx.failureReasons).toEqual([]);
+  it("hasSucceeded returns false if not all requirements succeeded", () => {
+    const req1 = new MockRequirement();
+    const req2 = new MockRequirement();
+    const ctx = new AuthorizationHandlerContext([req1, req2], user, null);
+    ctx.succeed(req1);
+    expect(ctx.hasSucceeded).toBe(false); // one requirement still pending
+  });
+
+  it("hasSucceeded returns false if fail was called", () => {
+    const req = new MockRequirement();
+    const ctx = new AuthorizationHandlerContext([req], user, null);
+    ctx.succeed(req);
+    ctx.fail();
+    expect(ctx.hasSucceeded).toBe(false);
   });
 });

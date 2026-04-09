@@ -2,8 +2,9 @@
 
 import { AuthorizationPolicy } from "./authorization.policy.js";
 import { AuthorizationOptions } from "./authorization.options.js";
-import { AuthorizationHandlerContext } from "./authorization.handler.context.js";
-import { AuthorizationPolicyBuilder } from "./authorization.policy.builder.js";
+import { IOptions } from "../types/index.js";
+import { ArgumentNullThrowHelper } from "../types/exception.js";
+import type { IAuthorizationPolicyBuilderConstructor } from "./types/index.js";
 
 /**
  * A type which can provide an AuthorizationPolicy for a particular name.
@@ -48,22 +49,25 @@ export class DefaultAuthorizationPolicyProvider implements IAuthorizationPolicyP
    * Creates a new instance of DefaultAuthorizationPolicyProvider.
    * @param options The options used to configure this instance.
    */
-  constructor(options: AuthorizationOptions) {
-    if (!options) {
-      throw new Error("options cannot be null");
-    }
-    this.options = options;
+  constructor(options: IOptions<AuthorizationOptions>) {
+    ArgumentNullThrowHelper.throwIfNull(options);
+    
+    this.options = options.value;
   }
 
   /**
    * Gets the default authorization policy.
    */
   public async getDefaultPolicyAsync(): Promise<AuthorizationPolicy> {
-    if (!this.cachedDefaultPolicy || (await this.cachedDefaultPolicy) !== this.options.getDefaultPolicy(AuthorizationPolicyBuilder)) {
-      this.cachedDefaultPolicy = Promise.resolve(this.options.getDefaultPolicy(AuthorizationPolicyBuilder));
+    if (
+      !this.cachedDefaultPolicy ||
+      (await this.cachedDefaultPolicy) !== this.options.getDefaultPolicy({} as IAuthorizationPolicyBuilderConstructor)
+    ) {
+      this.cachedDefaultPolicy = Promise.resolve(this.options.getDefaultPolicy({} as IAuthorizationPolicyBuilderConstructor));
     }
     return this.cachedDefaultPolicy;
   }
+
 
   /**
    * Gets the fallback authorization policy.

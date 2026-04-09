@@ -1,6 +1,6 @@
-// Licensed under MIT-style license (conceptual port of ASP.NET Core Authorization)
-
-import { IAuthorizationRequirement } from "./types.js";
+import { ArgumentNullThrowHelper, InvalidOperationException } from "../types/exception.js";
+import { isEmpty } from "../utils.js";
+import { IAuthorizationRequirement } from "./types/index.js";
 
 /**
  * Represents a collection of authorization requirements and the scheme or
@@ -25,18 +25,30 @@ export class AuthorizationPolicy {
    * @param requirements The list of IAuthorizationRequirements which must succeed for this policy to be successful.
    * @param authenticationSchemes The authentication schemes the requirements are evaluated against.
    */
-  constructor(requirements: IAuthorizationRequirement[], authenticationSchemes: string[]) {
-    if (!requirements) {
-      throw new Error("requirements cannot be null");
-    }
-    if (!authenticationSchemes) {
-      throw new Error("authenticationSchemes cannot be null");
-    }
-    if (requirements.length === 0) {
-      throw new Error("AuthorizationPolicy must have at least one requirement.");
+  constructor(requirements: Iterable<IAuthorizationRequirement>, authenticationSchemes: Iterable<string>) {
+    ArgumentNullThrowHelper.throwIfNull(requirements);
+    ArgumentNullThrowHelper.throwIfNull(authenticationSchemes);
+
+    if (isEmpty(requirements))
+    {
+        throw new InvalidOperationException("AuthorizationPolicy must have at least one requirement.");
     }
 
     this.requirements = Object.freeze([...requirements]);
     this.authenticationSchemes = Object.freeze([...authenticationSchemes]);
+  }
+
+  // Implement the iterator protocol so AuthorizationPolicy is Iterable
+  [Symbol.iterator](): Iterator<IAuthorizationRequirement> {
+    let index = 0;
+    const reqs = this.requirements;
+    return {
+      next(): IteratorResult<IAuthorizationRequirement> {
+        if (index < reqs.length) {
+          return { value: reqs[index++], done: false };
+        }
+        return { value: undefined as any, done: true };
+      }
+    };
   }
 }

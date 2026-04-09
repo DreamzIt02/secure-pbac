@@ -1,26 +1,17 @@
-import { IAuthorizationRequirement } from "./types.js";
+import { IAuthorizationRequirement, IAuthorizeData } from "./types/index.js";
 import { AuthorizationPolicy } from "./authorization.policy.js";
 import { AuthorizationHandlerContext } from "./authorization.handler.context.js";
 import { ClaimsAuthorizationRequirement } from "./claims.authorization.requirement.js";
 import { RolesAuthorizationRequirement } from "./roles.authorization.requirement.js";
 import { DefaultAuthorizationPolicyProvider } from "./authorization.policy.provider.js";
 import { AssertionRequirement } from "./assertion.requirement.js";
-
-/**
- * Represents authorization data used to apply authorization to a resource.
- * (Simplified placeholder for IAuthorizeData in .NET)
- */
-export interface IAuthorizeData {
-  policy?: string;
-  roles?: string;
-  authenticationSchemes?: string;
-}
+import { NameAuthorizationRequirement } from "./name.authorization.requirement.js";
 
 /**
  * Used for building policies.
  */
 export class AuthorizationPolicyBuilder {
-  private static readonly denyAnonymousAuthorizationRequirement = {
+  private static readonly DenyAnonymousAuthorizationRequirement = {
     toString: () => "DenyAnonymousAuthorizationRequirement: Requires authenticated user",
   } as IAuthorizationRequirement;
 
@@ -59,7 +50,7 @@ export class AuthorizationPolicyBuilder {
     return this;
   }
 
-  public requireClaim(claimType: string, allowedValues?: string[]): AuthorizationPolicyBuilder {
+  public requireClaim(claimType: string, allowedValues?: Iterable<string>): AuthorizationPolicyBuilder {
     this.requirements.push(new ClaimsAuthorizationRequirement(claimType, allowedValues));
     return this;
   }
@@ -70,12 +61,12 @@ export class AuthorizationPolicyBuilder {
   }
 
   public requireUserName(userName: string): AuthorizationPolicyBuilder {
-    this.requirements.push({ toString: () => `NameAuthorizationRequirement: UserName=${userName}` });
+    this.requirements.push(new NameAuthorizationRequirement(userName));
     return this;
   }
 
   public requireAuthenticatedUser(): AuthorizationPolicyBuilder {
-    this.requirements.push(AuthorizationPolicyBuilder.denyAnonymousAuthorizationRequirement);
+    this.requirements.push(AuthorizationPolicyBuilder.DenyAnonymousAuthorizationRequirement);
     return this;
   }
 

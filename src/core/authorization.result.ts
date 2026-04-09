@@ -1,7 +1,20 @@
 import { AuthorizationFailure } from "./authorization.failure.js";
 
 /**
- * Encapsulates the result of IAuthorizationService.AuthorizeAsync.
+ * Encapsulates the result of an authorization operation.
+ *
+ * This class represents whether an authorization check succeeded or failed,
+ * and provides information about why it failed when applicable.
+ *
+ * Example usage:
+ * ```ts
+ * const success = AuthorizationResult.success();
+ * console.log(success.succeeded); // true
+ *
+ * const failure = AuthorizationResult.failed(AuthorizationFailure.explicitFail());
+ * console.log(failure.succeeded); // false
+ * console.log(failure.failure?.reason); // "ExplicitFail"
+ * ```
  */
 export class AuthorizationResult {
   private static readonly succeededResult: AuthorizationResult = new AuthorizationResult(true);

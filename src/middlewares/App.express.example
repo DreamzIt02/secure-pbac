@@ -1,0 +1,119 @@
+---
+
+### 1. `useAuthorization` Middleware for Express
+We already have a generic version; Express just passes `(req, res, next)` instead of `(IncomingMessage, ServerResponse, NextFn)`.
+
+```ts
+import { AuthorizationHandlerContext, DefaultAuthorizationHandlerContextFactory } from "../core/index.js";
+import { ClaimsPrincipal } from "../claims/index.js";
+import { IAuthorizationHandler } from "../core/types/index.js";
+import { isEmpty } from "../utils.js";
+
+export function useAuthorization(getRouteHandler: (req: any) => any) {
+  return async (req: any, res: any, next: any) => {
+    try {
+      const user: ClaimsPrincipal = req.user;
+      if (!user) return res.status(401).send("Unauthorized");
+
+      const handler = getRouteHandler(req);
+      if (!handler) return next();
+
+      const requirements: Iterable<IAuthorizationHandler> = handler.__requirements;
+      if (!requirements || isEmpty(requirements)) return next();
+
+      const context: AuthorizationHandlerContext =
+        new DefaultAuthorizationHandlerContextFactory().createContext(requirements, user, null);
+
+      for (const requirement of requirements) {
+        await requirement.handleAsync(context);
+        if (context.hasFailed) break;
+      }
+
+      if (context.hasSucceeded) return next();
+      return res.status(403).send("Forbidden");
+    } catch (err) {
+      res.status(500).json({ error: "Authorization check failed", details: err });
+    }
+  };
+}
+```
+
+---
+
+### 2. Define `getRouteHandler` for Express
+Express attaches the matched route handler to `req.route.stack`. We can resolve the handler like this:
+
+```ts
+export function getRouteHandler(req: any) {
+  // Express stores the matched route handlers in req.route.stack
+  const layer = req.route?.stack?.[0];
+  return layer?.handle;
+}
+```
+
+---
+
+### 3. Decorator Helper
+```ts
+export function Authorize(requirements: IAuthorizationHandler[]) {
+  return (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
+    descriptor.value.__requirements = requirements;
+    return descriptor;
+  };
+}
+```
+
+---
+
+### 4. `main.ts` Setup
+```ts
+import express from "express";
+import { useAuthorization } from "./middleware/useAuthorization.js";
+import { getRouteHandler } from "./middleware/getRouteHandler.js";
+import { ClaimsAuthorizationRequirement } from "./requirements/claims.js";
+import { RolesAuthorizationRequirement } from "./requirements/roles.js";
+
+const app = express();
+
+// Authentication middleware (attach req.user)
+app.use((req, res, next) => {
+  // Example: attach a fake ClaimsPrincipal
+  req.user = { claims: [{ type: "role", value: "Admin" }] };
+  next();
+});
+
+// Global authorization middleware
+app.use(useAuthorization(getRouteHandler));
+
+// Example route with requirements
+function adminHandler(req, res) {
+  res.send("Admin-only data");
+}
+adminHandler.__requirements = [new RolesAuthorizationRequirement(["Admin"])];
+
+app.get("/admin", adminHandler);
+
+function financeHandler(req, res) {
+  res.send("Finance department data");
+}
+financeHandler.__requirements = [new ClaimsAuthorizationRequirement("department", ["Finance"])];
+
+app.get("/finance", financeHandler);
+
+app.listen(3000, () => console.log("Express server running on http://localhost:3000"));
+```
+
+---
+
+### 🔑 Key Points
+- `useAuthorization(getRouteHandler)` is registered globally with `app.use()`.
+- `getRouteHandler(req)` resolves the matched route handler in Express.
+- Each handler can have `__requirements` attached (via decorator or manually).
+- Middleware enforces requirements before executing the handler.
+
+---
+
+This gives us the **ASP.NET Core‑style pipeline in Express**:  
+- `app.useAuthentication()` (attach `req.user`)  
+- `app.useAuthorization(getRouteHandler)` (global guard)  
+- Route handlers decorated with `Authorize([...])` or manually tagged with `__requirements`.  

@@ -1,0 +1,117 @@
+We’ll introduce two functions on our `app` object:  
+
+- **`app.addAuthorization(getRouteHandler)`** → registers the resolver function once.  
+- **`app.useAuthorization()`** → plugs the middleware into the request pipeline.  
+
+---
+
+### 1. Define a minimal `App` wrapper
+```ts
+import { createServer, IncomingMessage, ServerResponse } from "http";
+import { useAuthorization } from "./middleware/useAuthorization.js";
+
+type Middleware = (req: IncomingMessage, res: ServerResponse, next: () => void) => void;
+
+class App {
+  private middlewares: Middleware[] = [];
+  private getRouteHandler!: (req: IncomingMessage) => any;
+
+  addAuthorization(getRouteHandler: (req: IncomingMessage) => any) {
+    this.getRouteHandler = getRouteHandler;
+  }
+
+  useAuthorization() {
+    if (!this.getRouteHandler) {
+      throw new Error("We must call addAuthorization() first");
+    }
+    this.middlewares.push(useAuthorization(this.getRouteHandler));
+  }
+
+  use(mw: Middleware) {
+    this.middlewares.push(mw);
+  }
+
+  listen(port: number) {
+    const server = createServer(async (req, res) => {
+      let i = 0;
+      const next = () => {
+        const mw = this.middlewares[i++];
+        if (mw) {
+          mw(req, res, next);
+        } else {
+          // Dispatch to route handler
+          const handler = this.getRouteHandler(req);
+          if (handler) {
+            handler(req, res);
+          } else {
+            res.statusCode = 404;
+            res.end("Not Found");
+          }
+        }
+      };
+      next();
+    });
+    server.listen(port, () => console.log(`Server running on http://localhost:${port}`));
+  }
+}
+
+export const app = new App();
+```
+
+---
+
+### 2. `main.ts` usage
+```ts
+import { app } from "./app.js";
+import { routes } from "./routes.js";
+
+// Simple route resolver
+function getRouteHandler(req: IncomingMessage) {
+  return routes[req.url!];
+}
+
+// Example: add authentication middleware before authorization
+// app.use(authenticationMiddleware);
+
+// Register pipeline
+app.addAuthorization(getRouteHandler);
+app.useAuthorization();
+
+// Start server
+app.listen(3000);
+```
+
+---
+
+### 3. Route registration (`routes.ts`)
+```ts
+import { ClaimsAuthorizationRequirement } from "./requirements/claims.js";
+import { RolesAuthorizationRequirement } from "./requirements/roles.js";
+
+export const routes: Record<string, any> = {};
+
+export function Authorize(requirements: any[]) {
+  return (handler: Function) => {
+    handler.__requirements = requirements;
+    return handler;
+  };
+}
+
+function adminHandler(req, res) {
+  res.end("Admin-only data");
+}
+
+function financeHandler(req, res) {
+  res.end("Finance department data");
+}
+
+routes["/admin"] = Authorize([new RolesAuthorizationRequirement(["Admin"])])(adminHandler);
+routes["/finance"] = Authorize([new ClaimsAuthorizationRequirement("department", ["Finance"])])(financeHandler);
+```
+
+---
+
+### 🔑 Flow
+- `app.addAuthorization(getRouteHandler)` → tells the app how to resolve handlers.  
+- `app.useAuthorization()` → globally plugs in our authorization middleware.  
+- Every request runs through the pipeline, checks handler requirements, and either proceeds or short‑circuits.  

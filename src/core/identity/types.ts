@@ -1,7 +1,5 @@
+import { IClaim } from "../../claims/types.js";
 
-export interface IClaim {
-    type: string, value: string
-}
 /**
  * Represents a user in the system.
  */
@@ -17,4 +15,24 @@ export interface IUser<TClaim = IClaim> {
   lockoutEnabled?: boolean;
   twoFactorEnabled?: boolean;
   securityStamp?: string;
+}
+
+/**
+ * Interface describing the shape of IdentityError.
+ * Mirrors Microsoft.AspNetCore.Identity.IdentityError contract (simplified).
+ */
+export interface IIdentityError {
+  code: string;
+  description: string;
+}
+
+/**
+ * Interface describing the shape of IdentityResult.
+ * Mirrors Microsoft.AspNetCore.Identity.IdentityResult contract (simplified).
+ */
+export interface IIdentityResult {
+  succeeded: boolean;
+  errors: IIdentityError[];
+
+  toString(): string;
 }

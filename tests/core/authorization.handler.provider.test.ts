@@ -1,71 +1,44 @@
-// tests/core/authorization.handler.provider.test.ts
-
 import { describe, it, expect } from "vitest";
-import {
-  DefaultAuthorizationHandlerProvider,
-  AuthorizationHandlerContext,
-} from "../../src/core/index.js";
-import { IAuthorizationRequirement, IAuthorizationHandler } from "../../src/core/types.js";
+import { Claim, ClaimsIdentity, ClaimsPrincipal, ClaimTypes } from "../../src/claims/index.js";
+import { AuthorizationHandlerContext, DefaultAuthorizationHandlerProvider } from "../../src/core/index.js";
+import { Exceptions } from "../../src/types/exception.js";
 
-class DummyRequirement implements IAuthorizationRequirement {
-  toString() {
-    return "DummyRequirement";
-  }
-}
-
-class DummyHandler implements IAuthorizationHandler {
-  constructor(private readonly requirement: IAuthorizationRequirement) {}
-
-  async handleAsync(context: AuthorizationHandlerContext): Promise<void> {
-    context.succeed(this.requirement);
+// Mock handler implementing IAuthorizationHandler
+class MockHandler {
+  async handleAsync(context: any) {
+    return Promise.resolve();
   }
 }
 
 describe("DefaultAuthorizationHandlerProvider", () => {
-  it("should throw if handlers are null", () => {
-    expect(() => new DefaultAuthorizationHandlerProvider(null as any)).toThrow(
-      "handlers cannot be null"
-    );
-  });
+  const user = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Name, "Alice")]));
+  const context = new AuthorizationHandlerContext([], user, null);
 
-  it("should return handlers passed in constructor", async () => {
-    const requirement = new DummyRequirement();
-    const handler = new DummyHandler(requirement);
+  it("constructs with valid handlers", async () => {
+    const handler = new MockHandler();
     const provider = new DefaultAuthorizationHandlerProvider([handler]);
-
-    const ctx = new AuthorizationHandlerContext([requirement], { name: "alice" }, null);
-    const handlers = await provider.getHandlersAsync(ctx);
-
-    expect(handlers).toContain(handler);
-    expect(handlers.length).toBe(1);
+    const handlers = await provider.getHandlersAsync(context);
+    expect([...handlers]).toEqual([handler]);
   });
 
-  it("should support multiple handlers", async () => {
-    const requirement1 = new DummyRequirement();
-    const requirement2 = new DummyRequirement();
-    const handler1 = new DummyHandler(requirement1);
-    const handler2 = new DummyHandler(requirement2);
+  it("throws ArgumentNullException if handlers is null", () => {
+    expect(() => new DefaultAuthorizationHandlerProvider(null as any))
+      .toThrow(Exceptions.ArgumentNullException);
+  });
+
+  it("getHandlersAsync returns same handlers regardless of context", async () => {
+    const handler1 = new MockHandler();
+    const handler2 = new MockHandler();
     const provider = new DefaultAuthorizationHandlerProvider([handler1, handler2]);
-
-    const ctx = new AuthorizationHandlerContext([requirement1, requirement2], { name: "bob" }, "res");
-    const handlers = await provider.getHandlersAsync(ctx);
-
-    expect(handlers).toEqual(expect.arrayContaining([handler1, handler2]));
-    expect(handlers.length).toBe(2);
+    const handlers = await provider.getHandlersAsync(context);
+    expect([...handlers]).toContain(handler1);
+    expect([...handlers]).toContain(handler2);
   });
 
-  it("should allow handlers to execute against context", async () => {
-    const requirement = new DummyRequirement();
-    const handler = new DummyHandler(requirement);
+  it("getHandlersAsync resolves to iterable", async () => {
+    const handler = new MockHandler();
     const provider = new DefaultAuthorizationHandlerProvider([handler]);
-
-    const ctx = new AuthorizationHandlerContext([requirement], { name: "carol" }, null);
-    const handlers = await provider.getHandlersAsync(ctx);
-
-    // Execute handler
-    await handlers[0].handleAsync(ctx);
-
-    expect(ctx.hasSucceeded).toBe(true);
-    expect(ctx.pendingRequirements.length).toBe(0);
+    const result = await provider.getHandlersAsync(context);
+    expect(Symbol.iterator in result).toBe(true);
   });
 });

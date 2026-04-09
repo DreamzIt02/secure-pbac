@@ -1,0 +1,141 @@
+import express, { Express } from 'express';
+import { AuthorizationImplementationFactory } from './authorization.implementation.factory';
+import { authorizationMiddleware } from './authorization.middleware';
+
+// These would be our actual service instances
+import { AuthorizationService } from '../../core/authorization.service';
+import { PolicyAuthorizationService } from './policy.authorization.service';
+import { UserManager } from '../identity/user.manager';
+import { SignInManager } from '../../core/identity/sign-in.manager';
+
+/**
+ * Setup Authorization Middleware
+ * 
+ * This shows how to:
+ * 1. Create the factory once (at app startup)
+ * 2. Mount the middleware once
+ * 3. Use multiple decorators on routes
+ */
+export function setupAuthorizationMiddleware(app: Express): void {
+  // Initialize services (singleton pattern — create once at startup)
+  const authService = new AuthorizationService(/* deps */);
+  const policyAuthService = new PolicyAuthorizationService(/* deps */);
+  const userManager = new UserManager(/* deps */);
+  const signInManager = new SignInManager(/* deps */);
+
+  // Create factory once
+  const authFactory = new AuthorizationImplementationFactory(
+    authService,
+    policyAuthService,
+    userManager,
+    signInManager
+  );
+
+  // Mount middleware globally (or on specific routers)
+  app.use(authorizationMiddleware(authFactory));
+
+  console.log('[Authorization] Middleware mounted with factory');
+}
+
+/**
+ * Example controller with multiple decorators
+ */
+export class AdminController {
+  /**
+   * Only allows users with Admin claim
+   */
+  getAdminDashboard() {
+    return { dashboard: 'admin' };
+  }
+
+  /**
+   * Requires SiteAdmin policy + CanEdit claim
+   */
+  updateSettings() {
+    return { updated: true };
+  }
+
+  /**
+   * Requires SiteActingAdmin policy (no additional claims)
+   */
+  viewLogs() {
+    return { logs: [] };
+  }
+
+  /**
+   * Requires either SiteGeneralAdmin OR custom policy + at least 1 matching claim
+   */
+  manageUsers() {
+    return { users: [] };
+  }
+}
+
+/**
+ * Usage in Express app:
+ */
+export function configureRoutes(app: Express): void {
+  const adminCtrl = new AdminController();
+
+  // Route 1: Claims-only authorization
+  // @PolicyClaimsAuthorization([AuthorizeClaimEnum.Admin])
+  app.get('/api/admin/dashboard', (req, res) => {
+    res.json(adminCtrl.getAdminDashboard());
+  });
+
+  // Route 2: Policy + claims
+  // @PoliciesAuthorization(GroupPolicyEnum.SiteAdmin, [AuthorizeClaimEnum.CanEdit])
+  app.post('/api/admin/settings', (req, res) => {
+    res.json(adminCtrl.updateSettings());
+  });
+
+  // Route 3: Policy only (no claims required)
+  // @PoliciesAuthorization(GroupPolicyEnum.SiteActingAdmin)
+  app.get('/api/admin/logs', (req, res) => {
+    res.json(adminCtrl.viewLogs());
+  });
+
+  // Route 4: Multiple policies with fallback claims
+  // @PoliciesAuthorization(
+  //   GroupPolicyEnum.SiteGeneralAdmin,
+  //   [AuthorizeClaimEnum.ManageUsers],
+  //   1
+  // )
+  app.get('/api/admin/users', (req, res) => {
+    res.json(adminCtrl.manageUsers());
+  });
+}
+
+/**
+ * Full app bootstrap
+ */
+export function createApp(): Express {
+  const app = express();
+
+  // Middleware
+  app.use(express.json());
+
+  // Setup authorization (factory + middleware)
+  setupAuthorizationMiddleware(app);
+
+  // Routes
+  configureRoutes(app);
+
+  // Error handler
+  app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error('[Server Error]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  });
+
+  return app;
+}
+
+/**
+ * Start server
+ */
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  const app = createApp();
+  app.listen(PORT, () => {
+    console.log(`[Server] Running on port ${PORT}`);
+  });
+}

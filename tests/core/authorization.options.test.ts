@@ -1,11 +1,11 @@
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   AuthorizationPolicy,
   AuthorizationOptions,
 } from "../../src/core/index.js";
-import {
-  IAuthorizationRequirement,
-  IAuthorizationHandler,
-} from "../../src/core/types.js";
+import { IAuthorizationRequirement } from "../../src/core/types/index.js";
+import { Exceptions } from "../../src/types/exception.js";
+
 
 class DummyRequirement implements IAuthorizationRequirement {
   toString() {
@@ -30,13 +30,13 @@ class DummyPolicyBuilder {
 describe("AuthorizationPolicy", () => {
   it("should throw if requirements are null", () => {
     expect(() => new AuthorizationPolicy(null as any, [])).toThrow(
-      "requirements cannot be null"
+      "ArgumentNullException"
     );
   });
 
   it("should throw if authenticationSchemes are null", () => {
     expect(() => new AuthorizationPolicy([new DummyRequirement()], null as any)).toThrow(
-      "authenticationSchemes cannot be null"
+      "ArgumentNullException"
     );
   });
 
@@ -86,18 +86,18 @@ describe("AuthorizationOptions", () => {
   it("should throw when adding policy with empty name", () => {
     expect(() =>
       options.addPolicy("", () => {}, DummyPolicyBuilder)
-    ).toThrow("Policy name cannot be null or empty.");
+    ).toThrow(Exceptions.ArgumentNullOrEmptyException.message);
   });
 
   it("should throw when adding policy with null configurePolicy", () => {
     expect(() =>
       options.addPolicy("badPolicy", null as any, DummyPolicyBuilder)
-    ).toThrow("configurePolicy delegate cannot be null.");
+    ).toThrow("ArgumentNullException");
   });
 
   it("should throw when getPolicy called with empty name", async () => {
     await expect(options.getPolicy("")).rejects.toThrow(
-      "Policy name cannot be null or empty."
+      Exceptions.ArgumentNullOrEmptyException.message
     );
   });
 

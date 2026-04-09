@@ -1,7 +1,7 @@
 // Licensed under MIT-style license (conceptual port of ASP.NET Core Authorization)
 
-import { IAuthorizationRequirement, IAuthorizationHandler } from "./types.js";
 import { AuthorizationHandlerContext } from "./authorization.handler.context.js";
+import { IAuthorizationHandler, IAuthorizationRequirement } from "./types/index.js";
 
 /**
  * Implements an IAuthorizationHandler and IAuthorizationRequirement

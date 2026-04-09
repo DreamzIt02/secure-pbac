@@ -1,15 +1,20 @@
-import { IAuthorizationRequirement } from "./types.js";
 import { AuthorizationHandler } from "./authorization.handler.js";
 import { AuthorizationHandlerContext } from "./authorization.handler.context.js";
+import { IAuthorizationRequirement } from "./types/index.js";
+import { ArgumentNullThrowHelper } from "../types/exception.js";
+import { isEmpty } from "../utils.js";
 
 /**
  * Implements an IAuthorizationHandler and IAuthorizationRequirement
  * which requires at least one instance of the specified claim type, and,
  * if allowed values are specified, the claim value must be any of the allowed values.
+ *
+ * Mirrors ASP.NET Core's ClaimsAuthorizationRequirement.
  */
 export class ClaimsAuthorizationRequirement
   extends AuthorizationHandler<ClaimsAuthorizationRequirement>
-  implements IAuthorizationRequirement {
+  implements IAuthorizationRequirement
+{
   private readonly emptyAllowedValues: boolean;
 
   /**
@@ -19,43 +24,40 @@ export class ClaimsAuthorizationRequirement
    */
   constructor(
     public claimType: string,
-    public allowedValues?: string[]
+    public allowedValues?: Iterable<string>
   ) {
     super();
-    if (!claimType) {
-      throw new Error("claimType cannot be null or empty");
-    }
-    this.emptyAllowedValues = !allowedValues || allowedValues.length === 0;
+    ArgumentNullThrowHelper.throwIfNull(claimType);
+    
+    this.emptyAllowedValues = !allowedValues || isEmpty(allowedValues);
   }
 
-  /**
-   * Makes a decision if authorization is allowed based on the claims requirements specified.
-   * @param context The authorization context.
-   * @param requirement The requirement to evaluate.
-   */
+  // Overload signatures to satisfy base class
   protected async handleRequirementAsync(
     context: AuthorizationHandlerContext,
     requirement: ClaimsAuthorizationRequirement
+  ): Promise<void>;
+  protected async handleRequirementAsync(
+    context: AuthorizationHandlerContext,
+    requirement: ClaimsAuthorizationRequirement,
+    resource: object
+  ): Promise<void>;
+
+  // Implementation
+  protected async handleRequirementAsync(
+    context: AuthorizationHandlerContext,
+    requirement: ClaimsAuthorizationRequirement,
+    resource?: object
   ): Promise<void> {
     if (context.user) {
       let found = false;
 
-      if (requirement.emptyAllowedValues) {
-        for (const claim of context.user.claims ?? []) {
-          if (claim.type.toLowerCase() === requirement.claimType.toLowerCase()) {
-            found = true;
-            break;
-          }
-        }
-      } else {
-        for (const claim of context.user.claims ?? []) {
-          if (
-            claim.type.toLowerCase() === requirement.claimType.toLowerCase() &&
-            requirement.allowedValues!.includes(claim.value)
-          ) {
-            found = true;
-            break;
-          }
+      for (const claim of context.user.claims ?? []) 
+      {
+        if (claim.includes(requirement.claimType, requirement.emptyAllowedValues ? undefined : requirement.allowedValues)) 
+        {
+          found = true;
+          break;
         }
       }
 
@@ -63,6 +65,7 @@ export class ClaimsAuthorizationRequirement
         context.succeed(requirement);
       }
     }
+    return Promise.resolve();
   }
 
   /**
@@ -71,7 +74,7 @@ export class ClaimsAuthorizationRequirement
   public toString(): string {
     const value = this.emptyAllowedValues
       ? ""
-      : ` and Claim.Value is one of the following values: (${this.allowedValues!.join("|")})`;
+      : ` and Claim.Value is one of the following values: (${[...this.allowedValues!].join("|")})`;
 
     return `${this.constructor.name}:Claim.Type=${this.claimType}${value}`;
   }
@@ -79,7 +82,7 @@ export class ClaimsAuthorizationRequirement
   /**
    * Type guard to check if the requirement is of type ClaimsAuthorizationRequirement.
    */
-  protected isRequirementType(requirement: IAuthorizationRequirement): boolean {
+  protected isRequirementType(requirement: IAuthorizationRequirement): requirement is ClaimsAuthorizationRequirement {
     return requirement instanceof ClaimsAuthorizationRequirement;
   }
 }

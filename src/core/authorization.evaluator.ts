@@ -22,19 +22,19 @@ export class DefaultAuthorizationEvaluator implements IAuthorizationEvaluator {
       // If there are explicit failure reasons, use them
       if (context.failureReasons && context.failureReasons.length > 0) {
         return AuthorizationResult.failed(
-          AuthorizationFailure.failedWithReasons(context.failureReasons)
+          AuthorizationFailure.failed(context.failureReasons)
         );
       }
 
       // Otherwise, fail with the failed requirements
       return AuthorizationResult.failed(
-        AuthorizationFailure.failedRequirements(context.pendingRequirements ?? [])
+        AuthorizationFailure.failed([...(context.pendingRequirements ?? [])])
       );
     }
 
     // If neither succeeded nor failed, treat pending requirements as failure
     return AuthorizationResult.failed(
-      AuthorizationFailure.failedRequirements(context.pendingRequirements ?? [])
+      AuthorizationFailure.failed([...(context.pendingRequirements ?? [])])
     );
   }
 }

@@ -1,7 +1,8 @@
 // Licensed under MIT-style license (conceptual port of ASP.NET Core Authorization)
 
+import { ArgumentNullThrowHelper } from "../types/exception.js";
 import { AuthorizationHandlerContext } from "./authorization.handler.context.js";
-import { IAuthorizationHandler } from "./types.js";
+import { IAuthorizationHandler } from "./types/index.js";
 
 /**
  * A type which can provide the IAuthorizationHandlers for an authorization request.
@@ -12,7 +13,7 @@ export interface IAuthorizationHandlerProvider {
    * @param context The AuthorizationHandlerContext.
    * @returns A promise resolving to the list of handlers.
    */
-  getHandlersAsync(context: AuthorizationHandlerContext): Promise<IAuthorizationHandler[]>;
+  getHandlersAsync(context: AuthorizationHandlerContext): Promise<Iterable<IAuthorizationHandler>>;
 }
 
 /**
@@ -20,16 +21,15 @@ export interface IAuthorizationHandlerProvider {
  * which provides the IAuthorizationHandlers for an authorization request.
  */
 export class DefaultAuthorizationHandlerProvider implements IAuthorizationHandlerProvider {
-  private readonly handlersPromise: Promise<IAuthorizationHandler[]>;
+  private readonly handlersPromise: Promise<Iterable<IAuthorizationHandler>>;
 
   /**
    * Creates a new instance of DefaultAuthorizationHandlerProvider.
    * @param handlers The IAuthorizationHandlers.
    */
-  constructor(handlers: IAuthorizationHandler[]) {
-    if (!handlers) {
-      throw new Error("handlers cannot be null");
-    }
+  constructor(handlers: Iterable<IAuthorizationHandler>) {
+    ArgumentNullThrowHelper.throwIfNull(handlers);
+
     this.handlersPromise = Promise.resolve(handlers);
   }
 
@@ -38,7 +38,10 @@ export class DefaultAuthorizationHandlerProvider implements IAuthorizationHandle
    * @param context The AuthorizationHandlerContext.
    * @returns A promise resolving to the list of handlers.
    */
-  public getHandlersAsync(context: AuthorizationHandlerContext): Promise<IAuthorizationHandler[]> {
+  public getHandlersAsync(context: AuthorizationHandlerContext): Promise<Iterable<IAuthorizationHandler>> {
+    // FIXME: if (!this.handlersPromise)
+    //   return new DefaultAuthorizationHandlerProvider(context.requirements as Iterable<IAuthorizationHandler>).handlersPromise;
+
     return this.handlersPromise;
   }
 }

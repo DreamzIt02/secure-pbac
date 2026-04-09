@@ -141,6 +141,29 @@ export function tryParseEnumOrThrow<T extends Record<string, string | number>>(
   return result;
 }
 
+/**
+ * Attempts to parse a string into a valid TEnum.
+ * @param policy The string value to parse.
+ * @param output Reference to store the parsed TEnum if successful.
+ * @returns True if parsing succeeded, false otherwise.
+ */
+export function tryParse<
+  TEnum extends Record<string, string | number>
+>(
+  enumObj: TEnum,
+  value: string | unknown,
+  output: { value: TEnum[keyof TEnum] }
+): boolean {
+  const parsed = tryParseEnum(enumObj, value);
+  if (parsed !== null) {
+    output.value = parsed as TEnum[keyof TEnum];
+    return true;
+  }
+  output.value = undefined as any;
+  return false;
+}
+
+
 // * ✅ Safe for **numeric + string enums**
 // * ✅ Handles `"1"` → `1`
 // * ✅ Rejects reverse mapping exploits
