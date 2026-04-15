@@ -2,4 +2,3 @@ export { CustomIdentityBuilderExtensions, EmailUserTokenProvider, PhoneUserToken
 export type { IUserTokenProvider } from "./token.providers.js"
 
 export { UserManager1 } from "./user.manager.1.js"
-export type { IdentityUser1 } from "./user.manager.1.js"

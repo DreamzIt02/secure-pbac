@@ -1,7 +1,8 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to we under the MIT license.
 
+
+import { AllowedPrimaryKeysSafe } from "../../../contexts/index.js";
 import { CancellationToken } from "../../../types/cancellation.js";
+import { IIdentityResult } from "../../identity/types.js";
 import { IdentityUser } from "../../types/index.js";
 import { IUserStore } from "./user.store.js";
 
@@ -9,7 +10,7 @@ import { IUserStore } from "./user.store.js";
  * Provides an abstraction for a store containing users' password hashes.
  * @typeparam TUser The type encapsulating a user.
  */
-export interface IUserPasswordStore<TUser extends IdentityUser> extends IUserStore<TUser> {
+export interface IUserPasswordStore<TKey extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey>> extends IUserStore<TUser> {
     /**
      * Sets the password hash for the specified user.
      * @param user The user whose password hash to set.
@@ -44,4 +45,44 @@ export interface IUserPasswordStore<TUser extends IdentityUser> extends IUserSto
         user: TUser,
         cancellationToken: CancellationToken
     ): Promise<boolean>;
+}
+
+export class DefaultUserPasswordStore<TKey extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey>> implements IUserPasswordStore<TKey, TUser> {
+    setPasswordHashAsync(user: TUser, passwordHash: string | null, cancellationToken: CancellationToken): Promise<void> {
+        throw new Error("Method not implemented.");
+    }
+    getPasswordHashAsync(user: TUser, cancellationToken: CancellationToken): Promise<string | null> {
+        throw new Error("Method not implemented.");
+    }
+    hasPasswordAsync(user: TUser, cancellationToken: CancellationToken): Promise<boolean> {
+        throw new Error("Method not implemented.");
+    }
+    getUserIdAsync(user: TUser, cancellationToken: CancellationToken): Promise<string> {
+        throw new Error("Method not implemented.");
+    }
+    getUserNameAsync(user: TUser, cancellationToken: CancellationToken): Promise<string | null> {
+        throw new Error("Method not implemented.");
+    }
+    setUserNameAsync(user: TUser, userName: string | null, cancellationToken: CancellationToken): Promise<void> {
+        throw new Error("Method not implemented.");
+    }
+    createAsync(user: TUser, cancellationToken: CancellationToken): Promise<IIdentityResult> {
+        throw new Error("Method not implemented.");
+    }
+    updateAsync(user: TUser, cancellationToken: CancellationToken): Promise<IIdentityResult> {
+        throw new Error("Method not implemented.");
+    }
+    deleteAsync(user: TUser, cancellationToken: CancellationToken): Promise<IIdentityResult> {
+        throw new Error("Method not implemented.");
+    }
+    findByIdAsync(userId: string, cancellationToken: CancellationToken): Promise<TUser | null> {
+        throw new Error("Method not implemented.");
+    }
+    findByNameAsync(normalizedUserName: string, cancellationToken: CancellationToken): Promise<TUser | null> {
+        throw new Error("Method not implemented.");
+    }
+    [Symbol.dispose](): void {
+        throw new Error("Method not implemented.");
+    }
+
 }

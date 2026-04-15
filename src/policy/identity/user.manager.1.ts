@@ -1,40 +1,36 @@
 import { Claim, ClaimsPrincipal, SiteClaim } from '../../claims/index.js';
 import { AuthorizeClaimEnum, AuthorizeClaimTypeEnum, AuthorizeClaimPriorityEnum } from '../../claims/index.js';
-import { ILookupNormalizer, IPasswordHasher, IUserStore, PasswordHasher } from '../../core/extensions/index.js';
-import { AsyncLocalUserStore } from '../../core/extensions/user-stores/index.js';
+import { AllowedPrimaryKeysSafe } from '../../contexts/index.js';
+import { IdentityDbContext } from '../../core/contexts/index.js';
+import { ILookupNormalizer, IPasswordHasher, PasswordHasher } from '../../core/extensions/index.js';
+import { AsyncLocalUserStore, UserStore } from '../../core/extensions/user-stores/index.js';
 import { IdentityError, IdentityErrorDescriber, IdentityResult, UserManager } from '../../core/identity/index.js';
 import { IdentityOptions } from '../../core/options/index.js';
-import { IdentityUser } from '../../core/types/index.js';
+import { IdentityRole, IdentityUser } from '../../core/types/index.js';
 import { IPasswordValidator, IUserValidator } from '../../core/validators/index.js';
 import { tryParseEnum } from '../../types/enums.js';
 import { IdentityErrorCode } from '../../types/error.codes.js';
 import { IOptions } from '../../types/index.js';
 import { PriorManagers, SiteManager } from '../site.manager.js';
 
-export interface IdentityUser1 extends IdentityUser {}
-
-export class UserManager1<TUser extends IdentityUser1> extends UserManager<TUser> {
-  protected store: IUserStore<TUser>;
-  protected passwordHasher: IPasswordHasher<TUser>;
-  protected userValidators: IUserValidator<TUser>[] = [];
-  protected passwordValidators: IPasswordValidator<TUser>[] = [];
-  // public keyNormalizer: ILookupNormalizer;
-  // public errorDescriber: IdentityErrorDescriber;
-  // public options: IdentityOptions;
+export class UserManager1<TKey extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey>> extends UserManager<TKey, TUser> implements Disposable {
+  // protected store         : UserStore<IdentityUser, IdentityRole, string, IdentityContext>;
+  // protected passwordHasher: IPasswordHasher<TUser>;
+  // protected userValidators: IUserValidator<TUser>[] = [];
+  // protected passwordValidators: IPasswordValidator<TUser>[] = [];
 
   constructor(
-    store: IUserStore<TUser> = new AsyncLocalUserStore(),
-    passwordHasher: IPasswordHasher<TUser> = new PasswordHasher(),
-    userValidators: IUserValidator<TUser>[] = [],
-    passwordValidators: IPasswordValidator<TUser>[] = [],
-    keyNormalizer: ILookupNormalizer,
-    errorDescriber: IdentityErrorDescriber,
-    optionsAccessor: IOptions<IdentityOptions>,
+    store: UserStore<TUser, IdentityRole<TKey>, TKey, IdentityDbContext<TUser, IdentityRole<TKey>, TKey>> =
+            new AsyncLocalUserStore(IdentityDbContext as new () => IdentityDbContext<TUser, IdentityRole<TKey>, TKey>,
+              IdentityUser as new () => TUser, IdentityRole as new () => IdentityRole<TKey>),
+    passwordHasher     : IPasswordHasher<TUser>        = new PasswordHasher(),
+    userValidators     : IUserValidator<TKey, TUser>[]       = [],
+    passwordValidators : IPasswordValidator<TKey, TUser>[]   = [],
+    keyNormalizer      : ILookupNormalizer,
+    errorDescriber     : IdentityErrorDescriber,
+    optionsAccessor    : IOptions<IdentityOptions>,
   ) {
     super(store, optionsAccessor, passwordHasher, userValidators, passwordValidators, keyNormalizer, errorDescriber)
-
-    this.store = store
-    this.passwordHasher = passwordHasher
   }
 
   async hasClaimAsync(user: TUser, claim: Claim): Promise<boolean> {
@@ -53,9 +49,9 @@ export class UserManager1<TUser extends IdentityUser1> extends UserManager<TUser
     if (user == null)
     {
         /// <summary>
-        /// Allows to passed 'AllowAnonymous', when globally sets filter 'ClaimAuthorizeAttribute' in 'Startup.ConfigureServices'
+        /// FIXME: Allows to passed 'AllowAnonymous', when globally sets filter 'ClaimAuthorizeAttribute' in 'Startup.ConfigureServices'
         /// </summary>
-        return true;
+        return false;
     }
 
     const claims = await this.getClaimsAsync(user);
@@ -65,7 +61,7 @@ export class UserManager1<TUser extends IdentityUser1> extends UserManager<TUser
     /// <summary>
     /// Check type and value
     /// </summary>
-    return User.hasClaim(cc => cc.type == claim.type && cc.value == claim.value)
+    return User.hasClaim(cc => SiteClaim.isTypeEqual(cc.type, claim.type) && SiteClaim.isValueEqual(cc.value, claim.value))
   }
   /// <summary>
   /// Add the `SignIn` claim for the logged in user
@@ -88,7 +84,7 @@ export class UserManager1<TUser extends IdentityUser1> extends UserManager<TUser
   /// <summary>
   /// Update the `SignIn` claim for the logged in user
   /// 
-  /// So then, the User must log in again with refreshed indentity
+  /// So then, the User must log in again with refreshed identity
   /// </summary>
   /// <param name="user"></param>
   async updateSignInClaimAsync(user: TUser): Promise<IdentityResult> {
@@ -129,9 +125,9 @@ export class UserManager1<TUser extends IdentityUser1> extends UserManager<TUser
     return found ? parseInt(found.value || '0', 10) || 0 : 0;
   }
 
-  async priorManagerResolve(provider: AuthorizeClaimEnum, managers: TUser[]): Promise<PriorManagers<TUser>> {
+  async priorManagerResolve(provider: AuthorizeClaimEnum, managers: TUser[]): Promise<PriorManagers<TKey, TUser>> {
     const claimType = SiteManager.priorManagerClaimType(provider);
-    const result = new PriorManagers<TUser>();
+    const result = new PriorManagers<TKey, TUser>();
     for (const user of managers) {
       if (await this.hasClaimAsync(user, new Claim(claimType, String(SiteManager.priorManagerClaimValue(AuthorizeClaimPriorityEnum.A)) ))) {
         result.A.push(user);

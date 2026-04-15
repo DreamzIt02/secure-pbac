@@ -30,7 +30,7 @@ describe('SiteManager', () => {
   });
 
   describe('select logic', () => {
-    let managers: PriorManagers<any>;
+    let managers: PriorManagers<string, any>;
     beforeEach(() => {
       managers = new PriorManagers();
       managers.A.push({ id: '1', userName: 'A1', roles: [], claims: [] });

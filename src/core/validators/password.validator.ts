@@ -1,13 +1,15 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to we under the MIT license.
 
-import { IdentityError, IdentityErrorDescriber, IdentityResult } from "../identity/index.js";
+
+import { AllowedPrimaryKeysSafe } from "../../contexts/index.js";
+import { ArgumentNullThrowHelper } from "../../types/exception.js";
+import { IdentityError, IdentityErrorDescriber, IdentityResult, IUserManager } from "../identity/index.js";
+import { IdentityUser } from "../types/index.js";
 
 /// <summary>
 /// Provides an abstraction for validating passwords.
 /// </summary>
 /// <typeparam name="TUser">The type that represents a user.</typeparam>
-export interface IPasswordValidator<TUser extends object> {
+export interface IPasswordValidator<TKey extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey>> {
     /// <summary>
     /// Validates a password as an asynchronous operation.
     /// </summary>
@@ -15,14 +17,14 @@ export interface IPasswordValidator<TUser extends object> {
     /// <param name="user">The user whose password should be validated.</param>
     /// <param name="password">The password supplied for validation</param>
     /// <returns>The Promise object representing the asynchronous operation.</returns>
-    validateAsync(manager: UserManager<TUser>, user: TUser, password: string | null): Promise<IdentityResult>;
+    validateAsync(manager: IUserManager<TKey, TUser>, user: TUser, password: string | null): Promise<IdentityResult>;
 }
 
 /// <summary>
 /// Provides the default password policy for Identity.
 /// </summary>
 /// <typeparam name="TUser">The type that represents a user.</typeparam>
-export class PasswordValidator<TUser extends object> implements IPasswordValidator<TUser> {
+export class PasswordValidator<TKey extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey>> implements IPasswordValidator<TKey, TUser> {
     /// <summary>
     /// Constructs a new instance of PasswordValidator{TUser}.
     /// </summary>
@@ -43,7 +45,7 @@ export class PasswordValidator<TUser extends object> implements IPasswordValidat
     /// <param name="user">The user whose password should be validated.</param>
     /// <param name="password">The password supplied for validation</param>
     /// <returns>The Promise object representing the asynchronous operation.</returns>
-    public async validateAsync(manager: UserManager<TUser>, user: TUser, password: string | null): Promise<IdentityResult> {
+    public async validateAsync(manager: IUserManager<TKey, TUser>, user: TUser, password: string | null): Promise<IdentityResult> {
         ArgumentNullThrowHelper.throwIfNull(manager);
         let errors: IdentityError[] | null = null;
         const options = manager.options.password;
@@ -101,24 +103,5 @@ export class PasswordValidator<TUser extends object> implements IPasswordValidat
     /// </summary>
     public isLetterOrDigit(c: string): boolean {
         return this.isUpper(c) || this.isLower(c) || this.isDigit(c);
-    }
-}
-
-/// <summary>
-/// Represents a .NET-like UserManager placeholder for symmetry.
-/// </summary>
-export class UserManager<TUser extends object> {
-    options: { password: { requiredLength: number; requireNonAlphanumeric: boolean; requireDigit: boolean; requireLowercase: boolean; requireUppercase: boolean; requiredUniqueChars: number } } =
-        { password: { requiredLength: 6, requireNonAlphanumeric: false, requireDigit: false, requireLowercase: false, requireUppercase: false, requiredUniqueChars: 1 } };
-}
-
-/// <summary>
-/// Represents a .NET-like ArgumentNullThrowHelper placeholder for symmetry.
-/// </summary>
-export class ArgumentNullThrowHelper {
-    static throwIfNull(value: unknown): void {
-        if (value === null || value === undefined) {
-            throw new Error("ArgumentNullException");
-        }
     }
 }

@@ -48,6 +48,10 @@ export class NodeHttpContext extends HttpContextBase {
    */
   public authenticateResultFeature?: { authenticateResult: AuthenticateResult };
 
+  // Add these tracking properties
+  public signedIn?: { scheme: string; principal: ClaimsPrincipal; props: AuthenticationProperties };
+  public signedOut?: string;
+
   constructor(req: IncomingMessage, res: ServerResponse) {
     super();
     this.request = req;
@@ -93,12 +97,18 @@ export class NodeHttpContext extends HttpContextBase {
     this.request.destroy();
   }
 
-  signInAsync(authenticationScheme: string, userPrincipal: ClaimsPrincipal, authenticationProperties: AuthenticationProperties) {
-    throw new Error("Method not implemented.");
+  async signInAsync(
+    authenticationScheme: string,
+    userPrincipal: ClaimsPrincipal,
+    authenticationProperties: AuthenticationProperties
+  ): Promise<void> {
+    // FIXME: Minimal implementation: just record the call
+    this.signedIn = { scheme: authenticationScheme, principal: userPrincipal, props: authenticationProperties };
   }
 
-  signOutAsync(authenticationScheme: string) {
-    throw new Error("Method not implemented.");
+  async signOutAsync(authenticationScheme: string): Promise<void> {
+    // FIXME: Minimal implementation: just record the scheme
+    this.signedOut = authenticationScheme;
   }
 }
 

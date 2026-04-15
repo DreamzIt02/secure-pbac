@@ -1,10 +1,6 @@
 import crypto from "crypto";
 import { IdentityUser, PasswordVerificationResult } from "../types/index.js";
 
-interface IUser extends IdentityUser {
-
-}
-
 /**
  * Options for configuring the PasswordHasher.
  */
@@ -37,7 +33,7 @@ export interface RandomNumberGenerator {
  * Provides an abstraction for hashing passwords.
  * @typeparam TUser The type used to represent a user.
  */
-export interface IPasswordHasher<TUser extends IUser> {
+export interface IPasswordHasher<TUser> {
     /**
      * Returns a hashed representation of the supplied password for the specified user.
      * @param user The user whose password is to be hashed.
@@ -61,7 +57,7 @@ export interface IPasswordHasher<TUser extends IUser> {
  * Implements the standard Identity password hashing.
  * @typeparam TUser The type used to represent a user.
  */
-export class PasswordHasher<TUser extends IUser> implements IPasswordHasher<TUser> {
+export class PasswordHasher<TUser> implements IPasswordHasher<TUser> {
     private compatibilityMode: PasswordHasherCompatibilityMode;
     private iterCount: number;
     private rng: RandomNumberGenerator;

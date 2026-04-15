@@ -1,15 +1,14 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to we under the MIT license.
+
 
 import { CancellationToken } from "../../../types/cancellation.js";
-import { IdentityUser } from "../../types/index.js";
+import { IIdentityResult } from "../../identity/types.js";
 import { IUserStore } from "./user.store.js";
 
 /**
  * Provides an abstraction for a store containing users' telephone numbers.
  * @typeparam TUser The type encapsulating a user.
  */
-export interface IUserPhoneNumberStore<TUser extends IdentityUser> extends IUserStore<TUser> {
+export interface IUserPhoneNumberStore<TUser> extends IUserStore<TUser> {
     /**
      * Sets the telephone number for the specified user.
      * @param user The user whose telephone number should be set.
@@ -45,3 +44,45 @@ export interface IUserPhoneNumberStore<TUser extends IdentityUser> extends IUser
     setPhoneNumberConfirmedAsync(user: TUser, confirmed: boolean, cancellationToken: CancellationToken): Promise<void>;
 }
 
+export class DefaultUserPhoneNumberStore<TUser> implements IUserPhoneNumberStore<TUser> {
+    setPhoneNumberAsync(user: TUser, phoneNumber: string | null, cancellationToken: CancellationToken): Promise<void> {
+        throw new Error("Method not implemented.");
+    }
+    getPhoneNumberAsync(user: TUser, cancellationToken: CancellationToken): Promise<string | null> {
+        throw new Error("Method not implemented.");
+    }
+    getPhoneNumberConfirmedAsync(user: TUser, cancellationToken: CancellationToken): Promise<boolean> {
+        throw new Error("Method not implemented.");
+    }
+    setPhoneNumberConfirmedAsync(user: TUser, confirmed: boolean, cancellationToken: CancellationToken): Promise<void> {
+        throw new Error("Method not implemented.");
+    }
+    getUserIdAsync(user: TUser, cancellationToken: CancellationToken): Promise<string> {
+        throw new Error("Method not implemented.");
+    }
+    getUserNameAsync(user: TUser, cancellationToken: CancellationToken): Promise<string | null> {
+        throw new Error("Method not implemented.");
+    }
+    setUserNameAsync(user: TUser, userName: string | null, cancellationToken: CancellationToken): Promise<void> {
+        throw new Error("Method not implemented.");
+    }
+    createAsync(user: TUser, cancellationToken: CancellationToken): Promise<IIdentityResult> {
+        throw new Error("Method not implemented.");
+    }
+    updateAsync(user: TUser, cancellationToken: CancellationToken): Promise<IIdentityResult> {
+        throw new Error("Method not implemented.");
+    }
+    deleteAsync(user: TUser, cancellationToken: CancellationToken): Promise<IIdentityResult> {
+        throw new Error("Method not implemented.");
+    }
+    findByIdAsync(userId: string, cancellationToken: CancellationToken): Promise<TUser | null> {
+        throw new Error("Method not implemented.");
+    }
+    findByNameAsync(normalizedUserName: string, cancellationToken: CancellationToken): Promise<TUser | null> {
+        throw new Error("Method not implemented.");
+    }
+    [Symbol.dispose](): void {
+        throw new Error("Method not implemented.");
+    }
+
+}

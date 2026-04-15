@@ -2,7 +2,7 @@ import { Claim } from "../claims/index.js";
 import { AuthorizationHandler, AuthorizationHandlerContext } from "../core/index.js";
 import { IAuthorizationRequirement } from "../core/types/index.js";
 import { ArgumentNullThrowHelper } from "../types/exception.js";
-import { ClaimExpression, IPolicyClaimsExpressionEvaluator, PolicyClaimsExpressionEvaluator } from "./policy.expression.evaluator.factory.js";
+import { ClaimExpression, IPolicyExpressionEvaluatorFactory, PolicyExpressionEvaluatorFactory} from "./policy.expression.evaluator.factory.js";
 
 /**
  * Implements an IAuthorizationHandler and IAuthorizationRequirement
@@ -16,14 +16,14 @@ export class PolicyClaimsAuthorizationRequirement
   implements IAuthorizationRequirement
 {
   private readonly expressionFactory  : () => ClaimExpression;
-  private readonly expressionEvaluator: IPolicyClaimsExpressionEvaluator;
+  private readonly expressionEvaluator: IPolicyExpressionEvaluatorFactory;
 
   // Implementation
   constructor(expressionFactory: () => ClaimExpression) {
     ArgumentNullThrowHelper.throwIfNull(expressionFactory);
     super();
     this.expressionFactory   = expressionFactory;
-    this.expressionEvaluator = new PolicyClaimsExpressionEvaluator();
+    this.expressionEvaluator = new PolicyExpressionEvaluatorFactory();
   }
 
   // Overload signatures to satisfy base class
@@ -54,19 +54,6 @@ export class PolicyClaimsAuthorizationRequirement
     return Promise.resolve();
   }
   
-  // private evaluateExpression(expr: ClaimExpression, user: ClaimsPrincipal, resource?: object): boolean {
-  //   if (expr instanceof Claim) {
-  //     return user.hasClaim(c => expr.equals(c));
-  //   }
-  //   if ("and" in expr) {
-  //     return expr.and.every(e => this.evaluateExpression(e, user));
-  //   }
-  //   if ("or" in expr) {
-  //     return expr.or.some(e => this.evaluateExpression(e, user));
-  //   }
-  //   return false;
-  // }
-
   /**
    * Type guard to check if the requirement is of type PolicyClaimsAuthorizationRequirement.
    */

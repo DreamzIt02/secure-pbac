@@ -60,7 +60,7 @@ describe("Utility functions", () => {
       const fn = promisify();
       const key = await fn("password", "salt", 64);
       expect(key).toBeInstanceOf(Buffer);
-      expect(key.length).toBe(64);
+      expect((key as any).length).toBe(64);
     });
   });
 

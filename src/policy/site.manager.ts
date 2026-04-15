@@ -1,11 +1,12 @@
 // site-manager.ts
 
 import { AuthorizeClaimEnum, AuthorizeClaimPriorityEnum, Claim, SiteClaim } from "../claims/index.js";
+import { AllowedPrimaryKeysSafe } from "../contexts/index.js";
 import { IdentityUser } from "../core/types/index.js";
 
-export interface ISiteUser extends IdentityUser { }
+export interface ISiteUser<TKey extends AllowedPrimaryKeysSafe> extends IdentityUser<TKey> { }
 
-export class PriorManagers<T extends ISiteUser = ISiteUser> {
+export class PriorManagers<TKey extends AllowedPrimaryKeysSafe, T extends ISiteUser<TKey> = ISiteUser<TKey>> {
   A: T[] = [];
   B: T[] = [];
   C: T[] = [];
@@ -15,7 +16,7 @@ export class PriorManagers<T extends ISiteUser = ISiteUser> {
   Z: T[] = [];
 }
 
-export class SiteManager {
+export class SiteManager<TKey extends AllowedPrimaryKeysSafe> {
   static priorManagerClaimType(issuer: AuthorizeClaimEnum): string {
     return `preferred_${SiteClaim.authorizeClaimName(issuer)}`;
   }
@@ -39,8 +40,8 @@ export class SiteManager {
   /**
    * Selection logic (ported from C#)
    */
-  static select<T extends ISiteUser>(
-    managers: PriorManagers<T>,
+  static select<TKey extends AllowedPrimaryKeysSafe, T extends ISiteUser<TKey>>(
+    managers: PriorManagers<TKey, T>,
     total: number,
     solved: number
   ): [T, boolean] {

@@ -19,7 +19,7 @@ export interface IUser<TClaim = IClaim> {
 
 /**
  * Interface describing the shape of IdentityError.
- * Mirrors Microsoft.AspNetCore.Identity.IdentityError contract (simplified).
+ * Mirrors PBAC.Secure.Identity.IdentityError contract (simplified).
  */
 export interface IIdentityError {
   code: string;
@@ -28,7 +28,7 @@ export interface IIdentityError {
 
 /**
  * Interface describing the shape of IdentityResult.
- * Mirrors Microsoft.AspNetCore.Identity.IdentityResult contract (simplified).
+ * Mirrors PBAC.Secure.Identity.IdentityResult contract (simplified).
  */
 export interface IIdentityResult {
   succeeded: boolean;

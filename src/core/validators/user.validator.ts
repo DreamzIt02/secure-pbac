@@ -1,27 +1,29 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to we under the MIT license.
 
-import { IdentityError, IdentityErrorDescriber, IdentityResult } from "../identity/index.js";
+
+import { AllowedPrimaryKeysSafe } from "../../contexts/index.js";
+import { ArgumentNullThrowHelper } from "../../types/exception.js";
+import { IdentityError, IdentityErrorDescriber, IdentityResult, IUserManager } from "../identity/index.js";
+import { IdentityUser } from "../types/index.js";
 
 /// <summary>
 /// Provides an abstraction for user validation.
 /// </summary>
 /// <typeparam name="TUser">The type encapsulating a user.</typeparam>
-export interface IUserValidator<TUser extends object> {
+export interface IUserValidator<TKey extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey>> {
     /// <summary>
     /// Validates the specified user as an asynchronous operation.
     /// </summary>
     /// <param name="manager">The UserManager{TUser} that can be used to retrieve user properties.</param>
     /// <param name="user">The user to validate.</param>
     /// <returns>The Promise that represents the asynchronous operation, containing the IdentityResult of the validation operation.</returns>
-    validateAsync(manager: UserManager<TUser>, user: TUser): Promise<IdentityResult>;
+    validateAsync(manager: IUserManager<TKey, TUser>, user: TUser): Promise<IdentityResult>;
 }
 
 /// <summary>
 /// Provides validation services for user classes.
 /// </summary>
 /// <typeparam name="TUser">The type encapsulating a user.</typeparam>
-export class UserValidator<TUser extends object> implements IUserValidator<TUser> {
+export class UserValidator<TKey extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey>> implements IUserValidator<TKey, TUser> {
     /// <summary>
     /// Creates a new instance of UserValidator{TUser}.
     /// </summary>
@@ -38,24 +40,32 @@ export class UserValidator<TUser extends object> implements IUserValidator<TUser
     /// <summary>
     /// Validates the specified user as an asynchronous operation.
     /// </summary>
-    public async validateAsync(manager: UserManager<TUser>, user: TUser): Promise<IdentityResult> {
+    public async validateAsync(manager: IUserManager<TKey, TUser>, user: TUser): Promise<IdentityResult> {
         ArgumentNullThrowHelper.throwIfNull(manager);
         ArgumentNullThrowHelper.throwIfNull(user);
         let errors = await this.validateUserName(manager, user);
+        
+        if (errors?.length && errors.length > 0)
+            return IdentityResult.failed(errors);
+
         if (manager.options.user.requireUniqueEmail) {
             errors = await this.validateEmail(manager, user, errors);
         }
-        return errors?.length && errors.length > 0 ? IdentityResult.failed(errors) : IdentityResult.success();
+        if (errors?.length && errors.length > 0)
+            return IdentityResult.failed(errors);
+
+        return IdentityResult.success();
     }
 
-    private async validateUserName(manager: UserManager<TUser>, user: TUser): Promise<IdentityError[] | null> {
+    private async validateUserName(manager: IUserManager<TKey, TUser>, user: TUser): Promise<IdentityError[] | null> {
         let errors: IdentityError[] | null = null;
         const userName = await manager.getUserNameAsync(user);
+
         if (!userName || userName.trim().length === 0) {
             errors ??= [];
             errors.push(this.describer.invalidUserName(userName));
         } else if (manager.options.user.allowedUserNameCharacters &&
-            [...userName].some(c => !manager.options.user.allowedUserNameCharacters?.includes(c))) {
+            [...userName].some(c => !manager.options.user.allowedUserNameCharacters.includes(c))) {
             errors ??= [];
             errors.push(this.describer.invalidUserName(userName));
         } else {
@@ -70,48 +80,25 @@ export class UserValidator<TUser extends object> implements IUserValidator<TUser
     }
 
     // make sure email is not empty, valid, and unique
-    private async validateEmail(manager: UserManager<TUser>, user: TUser, errors: IdentityError[] | null): Promise<IdentityError[] | null> {
+    private async validateEmail(manager: IUserManager<TKey, TUser>, user: TUser, errors: IdentityError[] | null): Promise<IdentityError[] | null> {
         const email = await manager.getEmailAsync(user);
         if (!email || email.trim().length === 0) {
             errors ??= [];
             errors.push(this.describer.invalidEmail(email));
-            return errors;
-        }
-        if (!EmailAddressAttribute.isValid(email)) {
+        } 
+        else if (!EmailAddressAttribute.isValid(email)) {
             errors ??= [];
             errors.push(this.describer.invalidEmail(email));
-            return errors;
-        }
-        const owner = await manager.findByEmailAsync(email);
-        if (owner &&
-            (await manager.getUserIdAsync(owner)) !== (await manager.getUserIdAsync(user))) {
-            errors ??= [];
-            errors.push(this.describer.duplicateEmail(email));
+        } 
+        else {
+            const owner = await manager.findByEmailAsync(email);
+            if (owner &&
+                (await manager.getUserIdAsync(owner)) !== (await manager.getUserIdAsync(user))) {
+                errors ??= [];
+                errors.push(this.describer.duplicateEmail(email));
+            }
         }
         return errors;
-    }
-}
-
-/// <summary>
-/// Represents a .NET-like UserManager placeholder for symmetry.
-/// </summary>
-export class UserManager<TUser extends object> {
-    options: { user: { requireUniqueEmail: boolean; allowedUserNameCharacters?: string } } = { user: { requireUniqueEmail: false } };
-    async getUserNameAsync(user: TUser): Promise<string> { return ""; }
-    async findByNameAsync(userName: string): Promise<TUser | null> { return null; }
-    async getUserIdAsync(user: TUser): Promise<string> { return ""; }
-    async getEmailAsync(user: TUser): Promise<string> { return ""; }
-    async findByEmailAsync(email: string): Promise<TUser | null> { return null; }
-}
-
-/// <summary>
-/// Represents a .NET-like ArgumentNullThrowHelper placeholder for symmetry.
-/// </summary>
-export class ArgumentNullThrowHelper {
-    static throwIfNull(value: unknown): void {
-        if (value === null || value === undefined) {
-            throw new Error("ArgumentNullException");
-        }
     }
 }
 

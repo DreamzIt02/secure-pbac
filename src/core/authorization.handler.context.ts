@@ -1,4 +1,4 @@
-// Licensed under MIT-style license (conceptual port of ASP.NET Core Authorization)
+
 
 import { ClaimsPrincipal } from "../claims/claims.principal.js";
 import { ArgumentNullThrowHelper } from "../types/exception.js";

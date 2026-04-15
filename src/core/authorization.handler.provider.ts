@@ -1,4 +1,4 @@
-// Licensed under MIT-style license (conceptual port of ASP.NET Core Authorization)
+
 
 import { ArgumentNullThrowHelper } from "../types/exception.js";
 import { AuthorizationHandlerContext } from "./authorization.handler.context.js";

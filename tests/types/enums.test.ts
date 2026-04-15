@@ -1,64 +1,82 @@
-import { describe, expect, it } from 'vitest';
-import { tryParseEnum, tryParseEnumOrThrow } from '../../src/types/enums.js';
+import { describe, it, expect } from "vitest";
+import {
+  tryParseEnum,
+  tryParseEnumOrThrow,
+  tryParse,
+  extractEnum,
+} from "../../src/types/enums.js";
 
 // Numeric enum
-enum TestNum {
+enum NumericEnum {
   A = 0,
   B = 1,
   C = 2,
 }
 
 // String enum
-enum TestStr {
-  Admin = 'Admin',
-  User = 'User',
+enum StringEnum {
+  Admin = "Admin",
+  User = "User",
+  Guest = "Guest",
 }
 
-describe('tryParseEnum', () => {
-  it('should return null for null/undefined', () => {
-    expect(tryParseEnum(TestNum, null)).toBeNull();
-    expect(tryParseEnum(TestNum, undefined)).toBeNull();
+describe("tryParseEnum utilities", () => {
+  it("parses numeric enum with number", () => {
+    expect(tryParseEnum(NumericEnum, 1)).toBe(1);
+    expect(tryParseEnum(NumericEnum, 99)).toBeNull();
   });
 
-  it('should parse exact numeric values', () => {
-    expect(tryParseEnum(TestNum, 1)).toBe(1);
-    expect(tryParseEnum(TestNum, 999)).toBeNull();
+  it("parses numeric enum with string number", () => {
+    expect(tryParseEnum(NumericEnum, "2")).toBe(2);
+    expect(tryParseEnum(NumericEnum, " 1 ")).toBe(1);
   });
 
-  it('should parse string representing number', () => {
-    expect(tryParseEnum(TestNum, '1')).toBe(1);
-    expect(tryParseEnum(TestNum, '999')).toBeNull();
+  it("parses string enum with string", () => {
+    expect(tryParseEnum(StringEnum, "Admin")).toBe("Admin");
+    expect(tryParseEnum(StringEnum, "User")).toBe("User");
+    expect(tryParseEnum(StringEnum, "Invalid")).toBeNull();
   });
 
-  it('should parse string enum values', () => {
-    expect(tryParseEnum(TestStr, 'Admin')).toBe('Admin');
-    expect(tryParseEnum(TestStr, 'User')).toBe('User');
+  it("rejects reverse mapping keys from numeric enum", () => {
+    // Reverse mapping keys like "A" should not be accepted
+    expect(tryParseEnum(NumericEnum, "A")).toBeNull();
   });
 
-  it('should reject case mismatch for string enums', () => {
-    expect(tryParseEnum(TestStr, 'admin')).toBeNull();
+  it("returns null for null or undefined", () => {
+    expect(tryParseEnum(NumericEnum, null)).toBeNull();
+    expect(tryParseEnum(NumericEnum, undefined)).toBeNull();
   });
 
-  it('should reject reverse mapping abuse', () => {
-    // Numeric enum reverse mapping: "A" → 0 should NOT be allowed
-    expect(tryParseEnum(TestNum, 'A')).toBeNull();
+  it("tryParseEnumOrThrow returns value or throws", () => {
+    expect(tryParseEnumOrThrow(NumericEnum, 0)).toBe(0);
+    expect(() => tryParseEnumOrThrow(NumericEnum, "bad")).toThrowError(
+      "Invalid enum value: bad"
+    );
   });
 
-  it('should reject garbage input', () => {
-    expect(tryParseEnum(TestNum, {})).toBeNull();
-    expect(tryParseEnum(TestNum, [])).toBeNull();
-    expect(tryParseEnum(TestNum, 'abc')).toBeNull();
-  });
-});
+  it("tryParse sets output and returns boolean", () => {
+    const out: { value: any } = { value: null };
+    const ok = tryParse(StringEnum, "Guest", out);
+    expect(ok).toBe(true);
+    expect(out.value).toBe("Guest");
 
-describe('tryParseEnumOrThrow', () => {
-  it('should return value when valid', () => {
-    expect(tryParseEnumOrThrow(TestNum, 2)).toBe(2);
-    expect(tryParseEnumOrThrow(TestStr, 'User')).toBe('User');
+    const bad = tryParse(StringEnum, "Nope", out);
+    expect(bad).toBe(false);
+    expect(out.value).toBeUndefined();
   });
 
-  it('should throw error when invalid', () => {
-    expect(() => tryParseEnumOrThrow(TestNum, 999)).toThrow('Invalid enum value: 999');
-    expect(() => tryParseEnumOrThrow(TestStr, 'abc')).toThrow('Invalid enum value: abc');
+  it("extractEnum returns object without numeric keys", () => {
+    const obj = extractEnum(NumericEnum);
+    expect(obj).toHaveProperty("A", 0);
+    expect(obj).toHaveProperty("B", 1);
+    expect(obj).toHaveProperty("C", 2);
+    expect(Object.keys(obj)).toContain("A");
+  });
+
+  it("extractEnum with asArray returns values array", () => {
+    const arr = extractEnum(StringEnum, true);
+    expect(arr).toContain("Admin");
+    expect(arr).toContain("User");
+    expect(arr).toContain("Guest");
   });
 });

@@ -1,4 +1,5 @@
 import { Claim, ClaimsPrincipal } from "../claims/index.js";
+import { AllowedPrimaryKeysSafe } from "../contexts/index.js";
 import { AuthorizationResult, IAuthorizationService } from "../core/index.js";
 import { GroupPolicy, Policy, PolicyEnum, SitePolicy } from "../policies/index.js";
 import { Role } from "../roles/index.js";
@@ -21,17 +22,17 @@ export type PolicyExpression =
   | { and: PolicyExpression[] }         // logical AND
   | { or : PolicyExpression[] };        // logical OR
 
-export interface IPolicyClaimsExpressionEvaluator {
-    evaluateClaims   (expr: ClaimExpression, user: ClaimsPrincipal, resource?: object): Promise<AuthorizationResult>;
-    evaluateRoles    (expr: RoleExpression, user: ClaimsPrincipal, resource?: object): Promise<AuthorizationResult>;
+export interface IPolicyExpressionEvaluatorFactory {
+    evaluateClaims   (expr: ClaimExpression, user: ClaimsPrincipal, resource?: object) : Promise<AuthorizationResult>;
+    evaluateRoles    (expr: RoleExpression, user: ClaimsPrincipal, resource?: object)  : Promise<AuthorizationResult>;
     evaluatePolicies (expr: PolicyExpression, user: ClaimsPrincipal, resource?: object): Promise<AuthorizationResult>;
     evaluateHierarchy(expr: ClaimExpression, user: ClaimsPrincipal, resource?: object, policies?: Iterable<string>): Promise<AuthorizationResult>
 }
 
-export class PolicyClaimsExpressionEvaluator implements IPolicyClaimsExpressionEvaluator {
+export class PolicyExpressionEvaluatorFactory<TKey  extends AllowedPrimaryKeysSafe> implements IPolicyExpressionEvaluatorFactory{
     constructor(
         protected readonly authService?      : IAuthorizationService,
-        protected readonly authPolicyService?: IPolicyAuthorizationService,
+        protected readonly authPolicyService?: IPolicyAuthorizationService<TKey>,
     ) {}
 
     public async evaluateClaims(expr: ClaimExpression, user: ClaimsPrincipal, resource?: object): Promise<AuthorizationResult> {

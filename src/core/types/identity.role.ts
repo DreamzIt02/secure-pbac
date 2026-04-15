@@ -1,8 +1,15 @@
 /// <summary>
 /// Represents a role in the identity system
 /// </summary>
+
+import { AbstractEntity, AllowedPrimaryKeysSafe } from "../../contexts/index.js";
+import { randomUUID } from "../../utils.js";
+import { ILookupNormalizer, LookupNormalizer } from "../extensions/index.js";
+
 /// <typeparam name="TKey">The type used for the primary key for the role.</typeparam>
-export class IdentityRoleGeneric<TKey> {
+@AbstractEntity()
+export abstract class IdentityRoleGeneric<TKey> {
+    private readonly normalizer: ILookupNormalizer;
     /// <summary>
     /// Initializes a new instance of IdentityRole<TKey>.
     /// </summary>
@@ -12,6 +19,7 @@ export class IdentityRoleGeneric<TKey> {
         if (roleName) {
             this.name = roleName;
         }
+        this.normalizer = new LookupNormalizer();
     }
 
     /// <summary>
@@ -22,13 +30,16 @@ export class IdentityRoleGeneric<TKey> {
     /// <summary>
     /// Gets or sets the name for this role.
     /// </summary>
-    public name?: string;
+    public name?: string | null;
 
     /// <summary>
     /// A random value that should change whenever a role is persisted to the store
     /// </summary>
-    public concurrencyStamp: string = crypto.randomUUID();
+    public concurrencyStamp: string = randomUUID();
 
+    public get normalizedName(): string | null {
+        return this.normalizer.normalizeName(this.name ?? null)
+    }
     /// <summary>
     /// Returns the name of the role.
     /// </summary>
@@ -41,7 +52,7 @@ export class IdentityRoleGeneric<TKey> {
 /// <summary>
 /// The default implementation of IdentityRole<TKey> which uses a string as the primary key.
 /// </summary>
-export class IdentityRole extends IdentityRoleGeneric<string> {
+export class IdentityRole<TKey extends AllowedPrimaryKeysSafe> extends IdentityRoleGeneric<TKey> {
     /// <summary>
     /// Initializes a new instance of IdentityRole.
     /// </summary>
@@ -52,9 +63,5 @@ export class IdentityRole extends IdentityRoleGeneric<string> {
     constructor(roleName?: string);
     constructor(roleName?: string) {
         super(roleName);
-        this.id = crypto.randomUUID();
-        if (roleName) {
-            this.name = roleName;
-        }
     }
 }

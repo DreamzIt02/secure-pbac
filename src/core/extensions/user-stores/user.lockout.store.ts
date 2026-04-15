@@ -1,8 +1,7 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to we under the MIT license.
+
 
 import { CancellationToken } from "../../../types/cancellation.js";
-import { IdentityUser } from "../../types/index.js";
+import { IIdentityResult } from "../../identity/types.js";
 import { IUserStore } from "./user.store.js";
 
 /**
@@ -10,7 +9,7 @@ import { IUserStore } from "./user.store.js";
  * including access failures and lockout status.
  * @typeparam TUser The type that represents a user.
  */
-export interface IUserLockoutStore<TUser extends IdentityUser> extends IUserStore<TUser> {
+export interface IUserLockoutStore<TUser> extends IUserStore<TUser> {
     /**
      * Gets the last DateTimeOffset a user's last lockout expired, if any.
      * Any time in the past should indicate a user is not locked out.
@@ -96,3 +95,54 @@ export interface IUserLockoutStore<TUser extends IdentityUser> extends IUserStor
     ): Promise<void>;
 }
 
+export class DefaultUserLockoutStore<TUser> implements IUserLockoutStore<TUser> {
+    getLockoutEndDateAsync(user: TUser, cancellationToken: CancellationToken): Promise<Date | null> {
+        throw new Error("Method not implemented.");
+    }
+    setLockoutEndDateAsync(user: TUser, lockoutEnd: Date | null, cancellationToken: CancellationToken): Promise<void> {
+        throw new Error("Method not implemented.");
+    }
+    incrementAccessFailedCountAsync(user: TUser, cancellationToken: CancellationToken): Promise<number> {
+        throw new Error("Method not implemented.");
+    }
+    resetAccessFailedCountAsync(user: TUser, cancellationToken: CancellationToken): Promise<void> {
+        throw new Error("Method not implemented.");
+    }
+    getAccessFailedCountAsync(user: TUser, cancellationToken: CancellationToken): Promise<number> {
+        throw new Error("Method not implemented.");
+    }
+    getLockoutEnabledAsync(user: TUser, cancellationToken: CancellationToken): Promise<boolean> {
+        throw new Error("Method not implemented.");
+    }
+    setLockoutEnabledAsync(user: TUser, enabled: boolean, cancellationToken: CancellationToken): Promise<void> {
+        throw new Error("Method not implemented.");
+    }
+    getUserIdAsync(user: TUser, cancellationToken: CancellationToken): Promise<string> {
+        throw new Error("Method not implemented.");
+    }
+    getUserNameAsync(user: TUser, cancellationToken: CancellationToken): Promise<string | null> {
+        throw new Error("Method not implemented.");
+    }
+    setUserNameAsync(user: TUser, userName: string | null, cancellationToken: CancellationToken): Promise<void> {
+        throw new Error("Method not implemented.");
+    }
+    createAsync(user: TUser, cancellationToken: CancellationToken): Promise<IIdentityResult> {
+        throw new Error("Method not implemented.");
+    }
+    updateAsync(user: TUser, cancellationToken: CancellationToken): Promise<IIdentityResult> {
+        throw new Error("Method not implemented.");
+    }
+    deleteAsync(user: TUser, cancellationToken: CancellationToken): Promise<IIdentityResult> {
+        throw new Error("Method not implemented.");
+    }
+    findByIdAsync(userId: string, cancellationToken: CancellationToken): Promise<TUser | null> {
+        throw new Error("Method not implemented.");
+    }
+    findByNameAsync(normalizedUserName: string, cancellationToken: CancellationToken): Promise<TUser | null> {
+        throw new Error("Method not implemented.");
+    }
+    [Symbol.dispose](): void {
+        throw new Error("Method not implemented.");
+    }
+
+}

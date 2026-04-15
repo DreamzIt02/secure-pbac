@@ -1,7 +1,7 @@
 import { AuthorizationHandler, AuthorizationHandlerContext, IAuthorizationService } from "../core/index.js";
 import { IAuthorizationRequirement } from "../core/types/index.js";
 import { ArgumentNullThrowHelper } from "../types/exception.js";
-import { IPolicyClaimsExpressionEvaluator, PolicyClaimsExpressionEvaluator, PolicyExpression } from "./policy.expression.evaluator.factory.js";
+import { IPolicyExpressionEvaluatorFactory, PolicyExpressionEvaluatorFactory, PolicyExpression } from "./policy.expression.evaluator.factory.js";
 
 /**
  * Implements an IAuthorizationHandler and IAuthorizationRequirement
@@ -15,7 +15,7 @@ export class PolicyDefaultAuthorizationRequirement
   implements IAuthorizationRequirement
 {
   private readonly expressionFactory  : () => PolicyExpression;
-  private readonly expressionEvaluator: IPolicyClaimsExpressionEvaluator;
+  private readonly expressionEvaluator: IPolicyExpressionEvaluatorFactory;
   
   // Implementation
   constructor(
@@ -26,7 +26,7 @@ export class PolicyDefaultAuthorizationRequirement
     ArgumentNullThrowHelper.throwIfNull(authService);
     super();
     this.expressionFactory   = expressionFactory;
-    this.expressionEvaluator = new PolicyClaimsExpressionEvaluator(authService);
+    this.expressionEvaluator = new PolicyExpressionEvaluatorFactory(authService);
   }
 
   // Overload signatures to satisfy base class

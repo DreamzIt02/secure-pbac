@@ -1,32 +1,31 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to we under the MIT license.
 
 import { Claim, ClaimsIdentity, ClaimsPrincipal, ClaimTypes } from "../../claims/index.js";
-import { AuthenticationScheme, IAuthenticationSchemeProvider, AuthenticationProperties } from "../../http/authentication/index.js";
-import { HttpContext } from "../../http/index.js";
+import { AuthenticationScheme, IAuthenticationSchemeProvider, AuthenticationProperties, AuthenticationSchemeProvider } from "../../http/authentication/index.js";
+import { HttpContext, HttpContextAccessor } from "../../http/index.js";
 import { IHttpContextAccessor } from "../../http/types.js";
-import { IUserClaimsPrincipalFactory, IUserConfirmation } from "../extensions/index.js";
+import { DefaultUserConfirmation, IUserConfirmation, UserClaimsPrincipalFactory } from "../extensions/index.js";
 import { IdentityOptions } from "../options/index.js";
 import { ArgumentNullThrowHelper, InvalidOperationException } from "../../types/exception.js";
-import { ExternalLoginInfo, IdentityUser } from "../types/index.js";
+import { ExternalLoginInfo, IdentityRole, IdentityUser } from "../types/index.js";
 import { EventIds } from "./event_ids.js";
 import { IdentityConstants } from "./identity.constants.js";
 import { IdentityResult } from "./identity.result.js";
 import { SignInResult } from "./signin.result.js";
 import { UserManager } from "./user.manager.js";
 import { IOptions } from "../../types/index.js";
+import { AllowedPrimaryKeysSafe } from "../../contexts/index.js";
 
 /// <summary>
 /// Provides the APIs for user sign in.
 /// </summary>
 /// <typeparam name="TUser">The type encapsulating a user.</typeparam>
-export class SignInManager<TUser extends IdentityUser> {
+export class SignInManager<TKey extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey>> {
     private static readonly LoginProviderKey: string = "LoginProvider";
     private static readonly XsrfKey: string = "XsrfId";
 
     private contextAccessor: IHttpContextAccessor;
     private schemes: IAuthenticationSchemeProvider;
-    private confirmation: IUserConfirmation<TUser>;
+    private confirmation: IUserConfirmation<TKey, TUser>;
     private _context?: HttpContext;
     private twoFactorInfo?: TwoFactorAuthenticationInfo<TUser>;
 
@@ -34,12 +33,12 @@ export class SignInManager<TUser extends IdentityUser> {
     /// Creates a new instance of SignInManager{TUser}.
     /// </summary>
     constructor(
-        public userManager: UserManager<TUser>,
-        contextAccessor: IHttpContextAccessor,
-        public claimsFactory: IUserClaimsPrincipalFactory<TUser>,
+        public userManager: UserManager<TKey, TUser>,
+        public claimsFactory: UserClaimsPrincipalFactory<TKey, TUser, IdentityRole<TKey>>,
+        contextAccessor: HttpContextAccessor,
         optionsAccessor: IOptions<IdentityOptions>,
-        schemes: IAuthenticationSchemeProvider,
-        confirmation: IUserConfirmation<TUser>
+        schemes: AuthenticationSchemeProvider,
+        confirmation: DefaultUserConfirmation<TKey, TUser>
     ) {
         ArgumentNullThrowHelper.throwIfNull(userManager);
         ArgumentNullThrowHelper.throwIfNull(contextAccessor);
@@ -77,7 +76,7 @@ export class SignInManager<TUser extends IdentityUser> {
         this._context = value;
     }
 
-        /// <summary>
+    /// <summary>
     /// Creates a ClaimsPrincipal for the specified user, as an asynchronous operation.
     /// </summary>
     public async createUserPrincipalAsync(user: TUser): Promise<ClaimsPrincipal> {

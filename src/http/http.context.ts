@@ -1,5 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to we under the MIT license.
+
 
 import { ClaimsPrincipal } from "../claims/index.js";
 import { CancellationToken } from "../types/cancellation.js";
@@ -88,7 +87,7 @@ export abstract class HttpContext {
 /**
  * Debug view for HttpContext.
  */
-class HttpContextDebugView {
+export class HttpContextDebugView {
   private readonly context: HttpContext;
 
   constructor(context: HttpContext) {
@@ -143,7 +142,7 @@ class HttpContextDebugView {
 /**
  * Debug view for HttpContext features.
  */
-class HttpContextFeatureDebugView {
+export class HttpContextFeatureDebugView {
   private readonly features: IFeatureCollection;
 
   constructor(features: IFeatureCollection) {
@@ -158,7 +157,7 @@ class HttpContextFeatureDebugView {
 /**
  * Stub for HttpContextDebugFormatter.
  */
-class HttpContextDebugFormatter {
+export class HttpContextDebugFormatter {
   public static contextToString(context: HttpContext, reasonPhrase: string | null): string {
     return `HttpContext TraceIdentifier=${context.traceIdentifier}`;
   }

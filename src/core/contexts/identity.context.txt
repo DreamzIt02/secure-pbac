@@ -1,0 +1,67 @@
+/// <summary>
+/// Represents a session with the database, similar to .NET DbContext.
+
+import { AllowedPrimaryKeysSafe, DbContext, DbSet, PrimaryKey } from "../../contexts/index.js";
+import { CancellationToken } from "../../types/cancellation.js";
+import { IdentityRole, IdentityRoleClaim, IdentityUser, IdentityUserClaim, IdentityUserLogin, IdentityUserRole, IdentityUserToken } from "../types/index.js";
+
+/// </summary>
+export class IdentityContext<TKey extends AllowedPrimaryKeysSafe> extends DbContext {
+
+    public Users!     : DbSet<IdentityUser<TKey>>;
+    public Roles!     : DbSet<IdentityRole<TKey>>;
+    public UserRoles! : DbSet<IdentityUserRole<TKey>>;
+    public UserClaims!: DbSet<IdentityUserClaim<TKey>>;
+    public UserLogins!: DbSet<IdentityUserLogin<TKey>>;
+    public UserTokens!: DbSet<IdentityUserToken<TKey>>;
+    public RoleClaims!: DbSet<IdentityRoleClaim<TKey>>;
+
+    protected override onConfiguring(): void {
+        super.onConfiguring();
+        this.provider = undefined;
+        // Example: configure provider, logging, etc.
+        console.log("DbContext configured.");
+    }
+
+    protected override onModelCreating(): void {
+        super.onModelCreating();
+        // Type 1 (Not working)
+        // this.register(IdentityUser,      new PrimaryKey({ id: "string" }, { auto: true }));
+        // this.register(IdentityRole,      new PrimaryKey({ id: "string" }, { auto: true }));
+
+        // this.register(IdentityUserRole,  new PrimaryKey({ userId: "string", roleId: "string" }, { auto: false }));
+        // this.register(IdentityUserClaim, new PrimaryKey({ userId: "string", claimType: "string" }, { auto: false }));
+        // this.register(IdentityUserLogin, new PrimaryKey({ userId: "string", loginProvider: "string" }, { auto: false }));
+        // this.register(IdentityUserToken, new PrimaryKey({ userId: "string", loginProvider: "string" }, { auto: false }));
+        // this.register(IdentityRoleClaim, new PrimaryKey({ roleId: "string", claimType: "string" }, { auto: false }));
+
+        // Type 2
+        this.Users      = this.register<IdentityUser<TKey>>(IdentityUser, new PrimaryKey({ id: "string" }, { auto: true }));
+        this.Roles      = this.register<IdentityRole<TKey>>(IdentityRole, new PrimaryKey({ id: "string" }, { auto: true }));
+
+        this.UserRoles  = this.register<IdentityUserRole<TKey>> (IdentityUserRole,  new PrimaryKey({ userId: "string", roleId: "string" }, { auto: false }));
+        this.UserClaims = this.register<IdentityUserClaim<TKey>>(IdentityUserClaim, new PrimaryKey({ userId: "string", claimType: "string" }, { auto: false }));
+        this.UserLogins = this.register<IdentityUserLogin<TKey>>(IdentityUserLogin, new PrimaryKey({ userId: "string", loginProvider: "string" }, { auto: false }));
+        this.UserTokens = this.register<IdentityUserToken<TKey>>(IdentityUserToken, new PrimaryKey({ userId: "string", loginProvider: "string" }, { auto: false }));
+        this.RoleClaims = this.register<IdentityRoleClaim<TKey>>(IdentityRoleClaim, new PrimaryKey({ roleId: "string", claimType: "string" }, { auto: false }));
+
+        // Type 3 (Not working)
+        // this.register1(this.Users,      IdentityUser, new PrimaryKey({ id: "string" }, { auto: true }));
+        // this.register1(this.Roles,      IdentityRole, new PrimaryKey({ id: "string" }, { auto: true }));
+
+        // this.register1(this.UserRoles,  IdentityUserRole<string>,  new PrimaryKey({ userId: "string", roleId: "string" }, { auto: false }));
+        // this.register1(this.UserClaims, IdentityUserClaim<string>, new PrimaryKey({ userId: "string", claimType: "string" }, { auto: false }));
+        // this.register1(this.UserLogins, IdentityUserLogin<string>, new PrimaryKey({ userId: "string", loginProvider: "string" }, { auto: false }));
+        // this.register1(this.UserTokens, IdentityUserToken<string>, new PrimaryKey({ userId: "string", loginProvider: "string" }, { auto: false }));
+        // this.register1(this.RoleClaims, IdentityRoleClaim<string>, new PrimaryKey({ roleId: "string", claimType: "string" }, { auto: false }));
+    }
+
+    /// <summary>
+    /// Persists all changes to the underlying store.
+    /// </summary>
+    public override async saveChangesAsync(cancellationToken: CancellationToken): Promise<void> {
+        cancellationToken.throwIfCancellationRequested();
+        // Inject custom task, before changes applied to the DbContext
+        await super.saveChangesAsync(cancellationToken)
+    }
+}

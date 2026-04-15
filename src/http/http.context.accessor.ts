@@ -1,5 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to we under the MIT license.
+
 
 import { HttpContext } from "./http.context.js";
 

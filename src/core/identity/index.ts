@@ -6,5 +6,7 @@ export { IdentityResult } from "./identity.result.js"
 export { SignInResult } from "./signin.result.js"
 
 export { RoleManager } from "./role.manager.js"
+export type { IRoleManager } from "./role.manager.js"
 export { SignInManager } from "./signin.manager.js"
 export { UserManager } from "./user.manager.js"
+export type { IUserManager } from "./user.manager.js"

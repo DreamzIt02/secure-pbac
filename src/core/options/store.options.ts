@@ -1,5 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to we under the MIT license.
+
 
 /**
  * Used for store specific options.
@@ -35,5 +34,8 @@ export class Version {
  * Identity schema versions placeholder.
  */
 export class IdentitySchemaVersions {
-    public static readonly default: Version = new Version(0, 0);
+    public static readonly default:  Version = new Version(0, 0);
+    public static readonly version1: Version = new Version(1, 0);
+    public static readonly version2: Version = new Version(2, 0);
+    public static readonly version3: Version = new Version(3, 0);
 }

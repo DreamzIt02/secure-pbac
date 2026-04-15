@@ -1,9 +1,8 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to we under the MIT license.
+
 
 import { Claim } from "../../claims/index.js";
 import { IClaim } from "../../claims/types.js";
-import { ILookupNormalizer, IQueryable, IQueryableRoleStore, IRoleClaimStore, IRoleStore } from "../extensions/index.js";
+import { ILookupNormalizer, IQueryableRoleStore, IRoleClaimStore, IRoleStore } from "../extensions/index.js";
 import { ArgumentNullThrowHelper, NotSupportedException, ObjectDisposedThrowHelper } from "../../types/exception.js";
 import { IdentityRole } from "../types/index.js";
 import { IRoleValidator } from "../validators/index.js";
@@ -11,12 +10,53 @@ import { IdentityErrorDescriber } from "./identity.error.describer.js";
 import { IdentityError } from "./identity.error.js";
 import { IdentityResult } from "./identity.result.js";
 import { CancellationToken } from "../../types/cancellation.js";
+import { IQueryable } from "../../linq/index.js";
+import { AllowedPrimaryKeysSafe } from "../../contexts/index.js";
+
+/**
+ * Abstraction for managing roles in a persistence store.
+ */
+export interface IRoleManager<TKey extends AllowedPrimaryKeysSafe, TRole extends IdentityRole<TKey>> {
+  // Queryable roles
+  readonly roles: IQueryable<TRole>;
+  readonly supportsQueryableRoles: boolean;
+  readonly supportsRoleClaims: boolean;
+
+  // CRUD operations
+  createAsync(role: TRole): Promise<IdentityResult>;
+  updateAsync(role: TRole): Promise<IdentityResult>;
+  deleteAsync(role: TRole): Promise<IdentityResult>;
+
+  // Lookup operations
+  roleExistsAsync(roleName: string): Promise<boolean>;
+  findByIdAsync(roleId: string): Promise<TRole | null>;
+  findByNameAsync(roleName: string): Promise<TRole | null>;
+
+  // Role name/id
+  getRoleNameAsync(role: TRole): Promise<string | null>;
+  setRoleNameAsync(role: TRole, name: string | null): Promise<IdentityResult>;
+  getRoleIdAsync(role: TRole): Promise<string>;
+
+  // Claims
+  addClaimAsync(role: TRole, claim: Claim): Promise<IdentityResult>;
+  removeClaimAsync(role: TRole, claim: Claim): Promise<IdentityResult>;
+  getClaimsAsync(role: TRole): Promise<IClaim[]>;
+
+  // Normalization
+  normalizeKey(key: string | null): string | null;
+
+  // Disposal
+  dispose(): void;
+
+  // Error describer
+  errorDescriber: IdentityErrorDescriber;
+}
 
 /// <summary>
 /// Provides the APIs for managing roles in a persistence store.
 /// </summary>
 /// <typeparam name="TRole">The type encapsulating a role.</typeparam>
-export class RoleManager<TRole extends IdentityRole> {
+export class RoleManager<TKey extends AllowedPrimaryKeysSafe, TRole extends IdentityRole<TKey>> implements IRoleManager<TKey, TRole> {
     private disposed: boolean = false;
 
     /// <summary>
@@ -30,8 +70,8 @@ export class RoleManager<TRole extends IdentityRole> {
     /// Constructs a new instance of RoleManager{TRole}.
     /// </summary>
     constructor(
-        protected store: IRoleStore<TRole>,
-        roleValidators: Iterable<IRoleValidator<TRole>> | null,
+        protected store: IRoleStore<TKey, TRole>,
+        roleValidators: Iterable<IRoleValidator<TKey, TRole>> | null,
         public keyNormalizer: ILookupNormalizer,
         public errorDescriber: IdentityErrorDescriber
     ) {
@@ -46,13 +86,13 @@ export class RoleManager<TRole extends IdentityRole> {
     /// <summary>
     /// Gets a list of validators for roles to call before persistence.
     /// </summary>
-    public roleValidators: IRoleValidator<TRole>[] = [];
+    public roleValidators: IRoleValidator<TKey, TRole>[] = [];
 
     /// <summary>
     /// Gets an IQueryable collection of Roles if the persistence store is an IQueryableRoleStore{TRole}.
     /// </summary>
     public get roles(): IQueryable<TRole> {
-        const queryableStore = this.store as IQueryableRoleStore<TRole>;
+        const queryableStore = this.store as IQueryableRoleStore<TKey, TRole>;
         if (!queryableStore) {
             throw new NotSupportedException("Store is not IQueryableRoleStore");
         }
@@ -65,7 +105,7 @@ export class RoleManager<TRole extends IdentityRole> {
     public get supportsQueryableRoles(): boolean {
         this.throwIfDisposed();
         // return this.store instanceof IQueryableRoleStore;
-        return (this.store as IQueryableRoleStore<TRole>) !== undefined;
+        return (this.store as IQueryableRoleStore<TKey, TRole>) !== undefined;
 
     }
 
@@ -75,7 +115,7 @@ export class RoleManager<TRole extends IdentityRole> {
     public get supportsRoleClaims(): boolean {
         this.throwIfDisposed();
         // return this.store instanceof IRoleClaimStore;
-        return (this.store as IRoleClaimStore<TRole>) !== undefined;
+        return (this.store as IRoleClaimStore<TKey, TRole>) !== undefined;
     }
 
     /// <summary>
@@ -173,9 +213,10 @@ export class RoleManager<TRole extends IdentityRole> {
     /// </summary>
     public async addClaimAsync(role: TRole, claim: Claim): Promise<IdentityResult> {
         this.throwIfDisposed();
-        const claimStore = this.getClaimStore();
         ArgumentNullThrowHelper.throwIfNull(claim);
         ArgumentNullThrowHelper.throwIfNull(role);
+
+        const claimStore = this.getClaimStore();
         await claimStore.addClaimAsync(role, claim, this.cancellationToken);
         return await this.updateRoleAsync(role);
     }
@@ -248,8 +289,8 @@ export class RoleManager<TRole extends IdentityRole> {
     }
 
     // IRoleClaimStore methods
-    private getClaimStore(): IRoleClaimStore<TRole> {
-        const cast = this.store as IRoleClaimStore<TRole>;
+    private getClaimStore(): IRoleClaimStore<TKey, TRole> {
+        const cast = this.store as IRoleClaimStore<TKey, TRole>;
         if (!cast) {
             throw new NotSupportedException("Store is not IRoleClaimStore");
         }

@@ -1,9 +1,9 @@
+import { randomBytes as baseBytes, randomUUID as baseUUID, scrypt, createHmac as baseHmac} from "crypto"
+import { promisify as basePromisify } from "util"
+
 export function isEmpty<T>(iterable: Iterable<T>): boolean {
   return iterable[Symbol.iterator]().next().done === true;
 }
-
-import { randomBytes as baseBytes, randomUUID as baseUUID, scrypt } from "crypto"
-import { promisify as basePromisify } from "util"
 
 export function randomUUID(): string {
   return baseUUID()
@@ -32,4 +32,8 @@ export function generateBase32(): string {
 
     // If we prefer built-in encoding, we can use base64url instead:
     return buffer.toString("base64url"); // modern Node 20+ encoding option
+}
+
+export function createHmac(algorithm: string, token: Buffer<ArrayBuffer>, data: Buffer<ArrayBuffer>) {
+  return baseHmac(algorithm, token).update(data).digest();
 }

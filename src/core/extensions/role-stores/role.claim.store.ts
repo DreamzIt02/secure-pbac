@@ -1,7 +1,7 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to we under the MIT license.
+
 
 import { IClaim } from "../../../claims/types.js";
+import { AllowedPrimaryKeysSafe } from "../../../contexts/index.js";
 import { CancellationToken } from "../../../types/cancellation.js";
 import { IdentityRole } from "../../types/index.js";
 import { IRoleStore } from "./role.store.js";
@@ -10,7 +10,7 @@ import { IRoleStore } from "./role.store.js";
  * Provides an abstraction for a store of role specific claims.
  * @typeparam TRole The type encapsulating a role.
  */
-export interface IRoleClaimStore<TRole extends IdentityRole> extends IRoleStore<TRole> {
+export interface IRoleClaimStore<TKey extends AllowedPrimaryKeysSafe, TRole extends IdentityRole<TKey>> extends IRoleStore<TKey, TRole> {
     /**
      * Gets a list of Claims belonging to the specified role as an asynchronous operation.
      * @param role The role whose claims to retrieve.

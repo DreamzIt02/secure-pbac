@@ -1,11 +1,12 @@
 import { PolicyEnum } from '../policies/index.js';
 import { AuthorizeClaimEnum, ClaimsPrincipal } from '../claims/index.js';
-import { IdentityUser1 } from './identity/index.js';
 import { AuthorizationResult } from '../core/index.js';
 import { IManagerInfo } from '../types/index.js';
+import { IdentityUser } from '../core/types/index.js';
+import { AllowedPrimaryKeysSafe } from '../contexts/index.js';
 
 // Interface extracted from C# IPolicyAuthorizationService
-export interface IPolicyAuthorizationService<TUser extends IdentityUser1 = IdentityUser1> {
+export interface IPolicyAuthorizationService<TKey  extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey> = IdentityUser<TKey>> {
   /**
    * Authorize an User for Policy, the user fulfil from the given policy list
    * </summary>

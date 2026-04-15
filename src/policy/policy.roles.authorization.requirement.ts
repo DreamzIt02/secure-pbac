@@ -1,7 +1,7 @@
 import { AuthorizationHandler, AuthorizationHandlerContext } from "../core/index.js";
 import { IAuthorizationRequirement } from "../core/types/index.js";
 import { ArgumentNullThrowHelper } from "../types/exception.js";
-import { IPolicyClaimsExpressionEvaluator, PolicyClaimsExpressionEvaluator, RoleExpression } from "./policy.expression.evaluator.factory.js";
+import { IPolicyExpressionEvaluatorFactory, PolicyExpressionEvaluatorFactory, RoleExpression } from "./policy.expression.evaluator.factory.js";
 
 /**
  * Implements an IAuthorizationHandler and IAuthorizationRequirement
@@ -15,14 +15,14 @@ export class PolicyRolesAuthorizationRequirement
   implements IAuthorizationRequirement
 {
   private readonly expressionFactory  : () => RoleExpression;
-  private readonly expressionEvaluator: IPolicyClaimsExpressionEvaluator;
+  private readonly expressionEvaluator: IPolicyExpressionEvaluatorFactory;
   
   // Implementation
   constructor(expressionFactory: () => RoleExpression) {
     ArgumentNullThrowHelper.throwIfNull(expressionFactory);
     super();
     this.expressionFactory   = expressionFactory;
-    this.expressionEvaluator = new PolicyClaimsExpressionEvaluator();
+    this.expressionEvaluator = new PolicyExpressionEvaluatorFactory();
   }
 
   // Overload signatures to satisfy base class
@@ -53,19 +53,6 @@ export class PolicyRolesAuthorizationRequirement
     return Promise.resolve();
   }
   
-  // private evaluateExpression(expr: RoleExpression, user: ClaimsPrincipal): boolean {
-  //   if (typeof expr === "string") {
-  //     return user.isInRole(expr);
-  //   }
-  //   if ("and" in expr) {
-  //     return expr.and.every(e => this.evaluateExpression(e, user));
-  //   }
-  //   if ("or" in expr) {
-  //     return expr.or.some(e => this.evaluateExpression(e, user));
-  //   }
-  //   return false;
-  // }
-
   /**
    * Type guard to check if the requirement is of type PolicyRolesAuthorizationRequirement.
    */

@@ -1,8 +1,14 @@
+import { AbstractEntity, AllowedPrimaryKeysSafe } from "../../contexts/index.js";
+import { randomUUID } from "../../utils.js";
+import { ILookupNormalizer, LookupNormalizer } from "../extensions/index.js";
+
 /**
  * Represents a user in the identity system.
  * @typeparam TKey The type used for the primary key for the user.
  */
-export class IdentityUserGeneric<TKey> {
+@AbstractEntity()
+export abstract class IdentityUserGeneric<TKey> {
+    protected readonly normalizer: ILookupNormalizer;
     /**
      * Initializes a new instance of IdentityUser<TKey>.
      */
@@ -16,6 +22,7 @@ export class IdentityUserGeneric<TKey> {
         if (userName) {
             this.userName = userName;
         }
+        this.normalizer = new LookupNormalizer();
     }
 
     /** Gets or sets the primary key for this user. */
@@ -34,10 +41,10 @@ export class IdentityUserGeneric<TKey> {
     passwordHash: string | null = null;
 
     /** A random value that must change whenever a user's credentials change (password changed, login removed). */
-    securityStamp: string | null = null;
+    securityStamp: string | null = randomUUID();
 
     /** A random value that must change whenever a user is persisted to the store. */
-    concurrencyStamp: string | null = crypto.randomUUID();
+    concurrencyStamp: string | null = randomUUID();
 
     /** Gets or sets a telephone number for the user. */
     phoneNumber: string | null = null;
@@ -64,12 +71,19 @@ export class IdentityUserGeneric<TKey> {
     toString(): string {
         return this.userName ?? "";
     }
+
+    public get normalizedUserName(): string | null {
+        return this.normalizer.normalizeName(this.userName ?? null)
+    }
+    public get normalizedEmail(): string | null {
+        return this.normalizer.normalizeEmail(this.email ?? null)
+    }
 }
 
 /**
  * The default implementation of IdentityUser<TKey> which uses a string as a primary key.
  */
-export class IdentityUser extends IdentityUserGeneric<string> {
+export class IdentityUser<TKey extends AllowedPrimaryKeysSafe> extends IdentityUserGeneric<TKey> {
     /**
      * Initializes a new instance of IdentityUser.
      * The Id property is initialized to form a new GUID string value.
@@ -83,7 +97,5 @@ export class IdentityUser extends IdentityUserGeneric<string> {
     constructor(userName: string);
     constructor(userName?: string) {
         super(userName!);
-        this.id = crypto.randomUUID();
-        this.securityStamp = crypto.randomUUID();
     }
 }

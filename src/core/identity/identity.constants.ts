@@ -1,5 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to we under the MIT license.
+
 
 /// <summary>
 /// Represents all the options we can use to configure the cookies middleware used by the identity system.

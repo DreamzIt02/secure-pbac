@@ -1,6 +1,6 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to we under the MIT license.
 
+
+import { AllowedPrimaryKeysSafe } from "../../../contexts/index.js";
 import { CancellationToken } from "../../../types/cancellation.js";
 import { IIdentityResult } from "../../identity/types.js";
 import { IdentityRole } from "../../types/identity.role.js";
@@ -9,7 +9,7 @@ import { IdentityRole } from "../../types/identity.role.js";
  * Provides an abstraction for a storage and management of roles.
  * @typeparam TRole The type that represents a role.
  */
-export interface IRoleStore<TRole extends IdentityRole> extends Disposable {
+export interface IRoleStore<TKey extends AllowedPrimaryKeysSafe, TRole extends IdentityRole<TKey>> extends Disposable {
     dispose(): unknown;
     /**
      * Creates a new role in a store as an asynchronous operation.

@@ -1,5 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to we under the MIT license.
+
 
 import { TokenProviderDescriptor } from "./token.provider.descriptor.js";
 
@@ -65,5 +64,5 @@ export class TokenOptions {
     /**
      * Gets or sets the issuer used for the authenticator issuer.
      */
-    authenticatorIssuer: string = "Microsoft.AspNetCore.Identity.UI";
+    authenticatorIssuer: string = "PBAC.Secure.Identity.UI";
 }

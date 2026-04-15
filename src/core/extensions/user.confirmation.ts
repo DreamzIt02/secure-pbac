@@ -1,25 +1,35 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to we under the MIT license.
+import { AllowedPrimaryKeysSafe } from "../../contexts/index.js";
+import { IUserManager } from "../identity/index.js";
+import { IdentityUser } from "../types/index.js";
 
 /// <summary>
 /// Provides an abstraction for confirmation of user accounts.
 /// </summary>
 /// <typeparam name="TUser">The type encapsulating a user.</typeparam>
-export interface IUserConfirmation<TUser extends object> {
+export interface IUserConfirmation<TKey extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey>> {
     /// <summary>
     /// Determines whether the specified user is confirmed.
     /// </summary>
     /// <param name="manager">The UserManager that can be used to retrieve user properties.</param>
     /// <param name="user">The user.</param>
     /// <returns>Whether the user is confirmed.</returns>
-    isConfirmedAsync(manager: UserManager<TUser>, user: TUser): Promise<boolean>;
+    isConfirmedAsync(manager: IUserManager<TKey, TUser>, user: TUser): Promise<boolean>;
 }
 
 /// <summary>
-/// Represents a .NET-like UserManager placeholder for symmetry.
+/// Default implementation of <see cref="IUserConfirmation{TUser}"/>.
 /// </summary>
-export class UserManager<TUser extends object> {
-    // Stubbed methods for symmetry
-    async getUserNameAsync(user: TUser): Promise<string> { return ""; }
-    async getUserIdAsync(user: TUser): Promise<string> { return ""; }
+/// <typeparam name="TUser">The type encapsulating a user.</typeparam>
+export class DefaultUserConfirmation<TKey extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey>> implements IUserConfirmation<TKey, TUser>
+{
+    /// <summary>
+    /// Determines whether the specified <paramref name="user"/> is confirmed.
+    /// </summary>
+    /// <param name="manager">The <see cref="UserManager{TUser}"/> that can be used to retrieve user properties.</param>
+    /// <param name="user">The user.</param>
+    /// <returns>The <see cref="Task"/> that represents the asynchronous operation, containing the <see cref="IdentityResult"/> of the confirmation operation.</returns>
+    public async isConfirmedAsync(manager: IUserManager<TKey, TUser>, user: TUser): Promise<boolean>
+    {
+        return await manager.isEmailConfirmedAsync(user);
+    }
 }

@@ -1,27 +1,29 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to we under the MIT license.
 
-import { IdentityError, IdentityErrorDescriber, IdentityResult } from "../identity/index.js";
+
+import { AllowedPrimaryKeysSafe } from "../../contexts/index.js";
+import { ArgumentNullThrowHelper } from "../../types/exception.js";
+import { IdentityError, IdentityErrorDescriber, IdentityResult, IRoleManager } from "../identity/index.js";
+import { IdentityRole } from "../types/index.js";
 
 /// <summary>
 /// Provides an abstraction for validating a role.
 /// </summary>
 /// <typeparam name="TRole">The type encapsulating a role.</typeparam>
-export interface IRoleValidator<TRole extends object> {
+export interface IRoleValidator<TKey extends AllowedPrimaryKeysSafe, TRole extends IdentityRole<TKey>> {
     /// <summary>
     /// Validates a role as an asynchronous operation.
     /// </summary>
-    /// <param name="manager">The RoleManager{TRole} managing the role store.</param>
+    /// <param name="manager">The IRoleManager{TRole} managing the role store.</param>
     /// <param name="role">The role to validate.</param>
     /// <returns>A Promise that represents the IdentityResult of the asynchronous validation.</returns>
-    validateAsync(manager: RoleManager<TRole>, role: TRole): Promise<IdentityResult>;
+    validateAsync(manager: IRoleManager<TKey, TRole>, role: TRole): Promise<IdentityResult>;
 }
 
 /// <summary>
 /// Provides the default validation of roles.
 /// </summary>
 /// <typeparam name="TRole">The type encapsulating a role.</typeparam>
-export class RoleValidator<TRole extends object> implements IRoleValidator<TRole> {
+export class RoleValidator<TKey extends AllowedPrimaryKeysSafe, TRole extends IdentityRole<TKey>> implements IRoleValidator<TKey, TRole> {
     /// <summary>
     /// Creates a new instance of RoleValidator{TRole}.
     /// </summary>
@@ -35,7 +37,7 @@ export class RoleValidator<TRole extends object> implements IRoleValidator<TRole
     /// <summary>
     /// Validates a role as an asynchronous operation.
     /// </summary>
-    public async validateAsync(manager: RoleManager<TRole>, role: TRole): Promise<IdentityResult> {
+    public async validateAsync(manager: IRoleManager<TKey, TRole>, role: TRole): Promise<IdentityResult> {
         ArgumentNullThrowHelper.throwIfNull(manager);
         ArgumentNullThrowHelper.throwIfNull(role);
         const errors = await this.validateRoleName(manager, role);
@@ -45,7 +47,7 @@ export class RoleValidator<TRole extends object> implements IRoleValidator<TRole
         return IdentityResult.success();
     }
 
-    private async validateRoleName(manager: RoleManager<TRole>, role: TRole): Promise<IdentityError[] | null> {
+    private async validateRoleName(manager: IRoleManager<TKey, TRole>, role: TRole): Promise<IdentityError[] | null> {
         let errors: IdentityError[] | null = null;
         const roleName = await manager.getRoleNameAsync(role);
         if (!roleName || roleName.trim().length === 0) {
@@ -60,25 +62,5 @@ export class RoleValidator<TRole extends object> implements IRoleValidator<TRole
             }
         }
         return errors;
-    }
-}
-
-/// <summary>
-/// Represents a .NET-like RoleManager placeholder for symmetry.
-/// </summary>
-export class RoleManager<TRole extends object> {
-    async getRoleNameAsync(role: TRole): Promise<string> { return ""; }
-    async findByNameAsync(roleName: string): Promise<TRole | null> { return null; }
-    async getRoleIdAsync(role: TRole): Promise<string> { return ""; }
-}
-
-/// <summary>
-/// Represents a .NET-like ArgumentNullThrowHelper placeholder for symmetry.
-/// </summary>
-export class ArgumentNullThrowHelper {
-    static throwIfNull(value: unknown): void {
-        if (value === null || value === undefined) {
-            throw new Error("ArgumentNullException");
-        }
     }
 }

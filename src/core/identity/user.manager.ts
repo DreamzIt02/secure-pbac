@@ -1,7 +1,4 @@
-import { Claim, ClaimsPrincipal } from "../../claims/index.js";
-import { IdentityUser } from "../types/identity.user.js";
 import {
-    IUserStore,
     IUserAuthenticationTokenStore,
     IUserAuthenticatorKeyStore,
     IUserTwoFactorRecoveryCodeStore,
@@ -15,28 +12,119 @@ import {
     IUserClaimStore,
     IUserLockoutStore,
     IQueryableUserStore,
-    IQueryable,
     ILookupNormalizer,
     IPasswordHasher,
     IUserTwoFactorTokenProvider,
-    DefaultUserTwoFactorTokenProvider,
+    UserTwoFactorTokenProviderFactory,
 } from "../extensions/index.js";
+import { Claim, ClaimsPrincipal } from "../../claims/index.js";
+import { IClaim } from "../../claims/types.js";
 import { IdentityErrorDescriber } from "./identity.error.describer.js";
 import { IdentityResult } from "./identity.result.js";
-import { IdentityOptions } from "../options/index.js";
-import { PasswordVerificationResult, UserLoginInfo } from "../types/index.js";
-import { IClaim } from "../../claims/types.js";
+import { IdentityOptions, TokenOptions } from "../options/index.js";
+import { IdentityRole, IdentityUser, PasswordVerificationResult, UserLoginInfo } from "../types/index.js";
 import { IPasswordValidator, IUserValidator } from "../validators/index.js";
 import { IdentityError } from "./identity.error.js";
-import { generateBase32 } from "../../utils.js";
+import { generateBase32, randomUUID } from "../../utils.js";
 import { CancellationToken } from "../../types/cancellation.js";
 import { IOptions } from "../../types/index.js";
+import { DefaultAuthenticatorKeyStore, DefaultTwoFactorRecoveryCodeStore, DefaultUserAuthenticationTokenStore, DefaultUserClaimStore, DefaultUserEmailStore, DefaultUserLockoutStore, DefaultUserLoginStore, DefaultUserPasswordStore, DefaultUserPhoneNumberStore, DefaultUserRoleStore, DefaultUserSecurityStampStore, DefaultUserTwoFactorStore, UserStore } from "../extensions/user-stores/index.js";
+import { IQueryable } from "../../linq/index.js";
+import { AllowedPrimaryKeysSafe } from "../../contexts/index.js";
+import { IdentityDbContext } from "../contexts/index.js";
+
+// IUserManager.ts
+export interface IUserManager<TKey extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey>> {
+  options: IdentityOptions;
+  
+  // Basic store operations
+  createAsync(user: TUser): Promise<IdentityResult>;
+  updateAsync(user: TUser): Promise<IdentityResult>;
+  deleteAsync(user: TUser): Promise<IdentityResult>;
+  findByIdAsync(userId: string): Promise<TUser | null>;
+  findByNameAsync(userName: string): Promise<TUser | null>;
+
+  // User name and ID
+  getUserNameAsync(user: TUser): Promise<string | null>;
+  setUserNameAsync(user: TUser, userName: string | null): Promise<IdentityResult>;
+  getUserIdAsync(user: TUser): Promise<string>;
+
+  // Claims
+  addClaimAsync(user: TUser, claim: Claim): Promise<IdentityResult>;
+  addClaimsAsync(user: TUser, claims: Claim[]): Promise<IdentityResult>;
+  replaceClaimAsync(user: TUser, claim: Claim, newClaim: Claim): Promise<IdentityResult>;
+  removeClaimAsync(user: TUser, claim: Claim): Promise<IdentityResult>;
+  removeClaimsAsync(user: TUser, claims: Claim[]): Promise<IdentityResult>;
+  getClaimsAsync(user: TUser): Promise<IClaim[]>;
+
+  // Roles
+  addToRoleAsync(user: TUser, role: string): Promise<IdentityResult>;
+  addToRolesAsync(user: TUser, roles: string[]): Promise<IdentityResult>;
+  removeFromRoleAsync(user: TUser, role: string): Promise<IdentityResult>;
+  removeFromRolesAsync(user: TUser, roles: string[]): Promise<IdentityResult>;
+
+  // Logins
+  findByLoginAsync(loginProvider: string, providerKey: string): Promise<TUser | null>;
+  removeLoginAsync(user: TUser, loginProvider: string, providerKey: string): Promise<IdentityResult>;
+  addLoginAsync(user: TUser, login: UserLoginInfo): Promise<IdentityResult>;
+  getLoginsAsync(user: TUser): Promise<UserLoginInfo[]>;
+
+  // Security
+  getSecurityStampAsync(user: TUser): Promise<string>;
+  updateSecurityStampAsync(user: TUser): Promise<IdentityResult>;
+
+  // Passwords
+  hasPasswordAsync(user: TUser): Promise<boolean>;
+  addPasswordAsync(user: TUser, password: string): Promise<IdentityResult>;
+  changePasswordAsync(user: TUser, currentPassword: string, newPassword: string): Promise<IdentityResult>;
+  removePasswordAsync(user: TUser): Promise<IdentityResult>;
+  checkPasswordAsync(user: TUser, password: string): Promise<boolean>;
+
+  // ClaimsPrincipal helpers
+  getUserName(principal: ClaimsPrincipal): string | null;
+  getUserId(principal: ClaimsPrincipal): string | null;
+  getUserAsync(principal: ClaimsPrincipal): Promise<TUser | null>;
+
+  /**
+   * Gets the user, if any, associated with the normalized value of the specified email address.
+   * @param email The email address to return the user for.
+   * @returns A Promise containing the user, if any, associated with a normalized value of the specified email address.
+   */
+   findByEmailAsync(email: string): Promise<TUser | null>;
+   /**
+    * Gets the email address for the specified user.
+    * @param user The user whose email should be returned.
+    * @returns A Promise containing the email address for the specified user.
+    */
+    getEmailAsync(user: TUser): Promise<string | null>;
+    /**
+     * Gets a flag indicating whether the email address for the specified user has been verified.
+     * @param user The user whose email confirmation status should be returned.
+     * @returns A Promise containing true if the email address has been confirmed, otherwise false.
+     */
+    isEmailConfirmedAsync(user: TUser): Promise<boolean>;
+
+    /**
+     * Gets the telephone number, if any, for the specified user.
+     * @param user The user whose telephone number should be retrieved.
+     * @returns A Promise containing the user's telephone number, if any.
+     */
+    getPhoneNumberAsync(user: TUser): Promise<string | null>;
+
+    /**
+     * Gets a flag indicating whether the specified user's telephone number has been confirmed.
+     * @param user The user to return a flag for.
+     * @returns A Promise returning true if the specified user has a confirmed telephone number, otherwise false.
+     */
+    isPhoneNumberConfirmedAsync(user: TUser): Promise<boolean>;
+}
 
 /**
  * Provides the APIs for managing user in a persistence store.
  * @typeparam TUser The type encapsulating a user.
  */
-export class UserManager<TUser extends IdentityUser> implements Disposable {
+export class UserManager<TKey extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey>> implements IUserManager<TKey, TUser>, Disposable {
+   
     /** The data protection purpose used for the reset password related methods. */
     public static readonly resetPasswordTokenPurpose: string = "ResetPassword";
 
@@ -46,33 +134,32 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
     /** The data protection purpose used for the email confirmation related methods. */
     public static readonly confirmEmailTokenPurpose: string = "EmailConfirmation";
 
-    private readonly _tokenProviders: Map<string, IUserTwoFactorTokenProvider<TUser>>;
+    private readonly _tokenProviders: Map<string, IUserTwoFactorTokenProvider<TKey, TUser>>;
     private _disposed: boolean;
+    private cancellationToken: CancellationToken = CancellationToken.none;
 
-    protected store: IUserStore<TUser>;
-    protected passwordHasher: IPasswordHasher<TUser>;
-    protected userValidators: IUserValidator<TUser>[] = [];
-    protected passwordValidators: IPasswordValidator<TUser>[] = [];
-    protected keyNormalizer: ILookupNormalizer;
-    protected errorDescriber: IdentityErrorDescriber;
-    protected options: IdentityOptions;
+    protected readonly store         : UserStore<TUser, IdentityRole<TKey>, TKey, IdentityDbContext<TUser, IdentityRole<TKey>, TKey>>;
+    protected readonly passwordHasher: IPasswordHasher<TUser>;
+    protected readonly userValidators: IUserValidator<TKey, TUser>[] = [];
+    protected readonly passwordValidators: IPasswordValidator<TKey, TUser>[] = [];
+    protected readonly keyNormalizer : ILookupNormalizer;
+    protected readonly errorDescriber: IdentityErrorDescriber;
 
-    protected cancellationToken: CancellationToken = CancellationToken.none;
-
+    public readonly options : IdentityOptions;
     constructor(
-        store: IUserStore<TUser>,
+        store          : UserStore<TUser, IdentityRole<TKey>, TKey, IdentityDbContext<TUser, IdentityRole<TKey>, TKey>>,
         optionsAccessor: IOptions<IdentityOptions>,
-        passwordHasher: IPasswordHasher<TUser>,
-        userValidators: IUserValidator<TUser>[],
-        passwordValidators: IPasswordValidator<TUser>[],
-        keyNormalizer: ILookupNormalizer,
-        errors: IdentityErrorDescriber,
+        passwordHasher : IPasswordHasher<TUser>,
+        userValidators : IUserValidator<TKey, TUser>[],
+        passwordValidators: IPasswordValidator<TKey, TUser>[],
+        keyNormalizer  : ILookupNormalizer,
+        errorDescriber : IdentityErrorDescriber,
     ) {
-        this.store = store;
-        this.options = optionsAccessor?.value ?? new IdentityOptions();
+        this.store          = store;
         this.passwordHasher = passwordHasher;
-        this.keyNormalizer = keyNormalizer;
-        this.errorDescriber = errors;
+        this.keyNormalizer  = keyNormalizer;
+        this.errorDescriber = errorDescriber;
+        this.options        = optionsAccessor?.value ?? new IdentityOptions();
 
         if (userValidators) {
             this.userValidators.push(...userValidators);
@@ -80,14 +167,20 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
         if (passwordValidators) {
             this.passwordValidators.push(...passwordValidators);
         }
-        this._tokenProviders = new Map<string, IUserTwoFactorTokenProvider<TUser>>([ ]);
-        this.registerTokenProvider("Default", new DefaultUserTwoFactorTokenProvider<TUser>());
+        this._tokenProviders = new Map<string, IUserTwoFactorTokenProvider<TKey, TUser>>([ ]);
+        const tokenProviders = UserTwoFactorTokenProviderFactory.defaultTokenProviders();
+
+        for (const [key, provider] of tokenProviders) {
+            if (provider) {
+                this.registerTokenProvider(key, provider);
+            }
+        }
 
         this._disposed = false;
     }
     [Symbol.
         dispose](): void {
-        throw new Error("Method not implemented.");
+        this.store.dispose()
     }
 
     /** Releases all resources used by the user manager. */
@@ -98,7 +191,7 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
 
     /** Gets a flag indicating whether the backing user store supports authentication tokens. */
     get supportsUserAuthenticationTokens(): boolean {
-        return (this.store as IUserAuthenticationTokenStore<TUser>) !== undefined;
+        return (this.store as IUserAuthenticationTokenStore<TKey, TUser>) !== undefined;
     }
 
     /** Gets a flag indicating whether the backing user store supports a user authenticator. */
@@ -118,7 +211,7 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
 
     /** Gets a flag indicating whether the backing user store supports user passwords. */
     get supportsUserPassword(): boolean {
-        return (this.store as IUserPasswordStore<TUser>) !== undefined;
+        return (this.store as IUserPasswordStore<TKey, TUser>) !== undefined;
     }
 
     /** Gets a flag indicating whether the backing user store supports security stamps. */
@@ -138,7 +231,7 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
 
     /** Gets a flag indicating whether the backing user store supports user emails. */
     get supportsUserEmail(): boolean {
-        return (this.store as IUserEmailStore<TUser>) !== undefined;
+        return (this.store as IUserEmailStore<TKey, TUser>) !== undefined;
     }
 
     /** Gets a flag indicating whether the backing user store supports user telephone numbers. */
@@ -170,7 +263,7 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
         return queryableStore.users;
     }
 
-        /**
+    /**
      * Returns the Name claim value if present otherwise returns null.
      * @param principal The ClaimsPrincipal instance.
      * @returns The Name claim value, or null if the claim is not present.
@@ -201,6 +294,7 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
     async getUserAsync(principal: ClaimsPrincipal): Promise<TUser | null> {
         if (!principal) throw new Error("principal cannot be null");
         const id = this.getUserId(principal);
+
         return id == null ? null : await this.findByIdAsync(id);
     }
 
@@ -210,7 +304,7 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
      * @returns A Promise containing the security stamp for the specified user.
      */
     async generateConcurrencyStampAsync(user: TUser): Promise<string> {
-        return crypto.randomUUID();
+        return randomUUID();
     }
 
     /**
@@ -431,7 +525,7 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
      * @param password The password to verify.
      * @returns A Promise containing the PasswordVerificationResult of the operation.
      */
-    protected async verifyPasswordAsync(store: IUserPasswordStore<TUser>, user: TUser, password: string): Promise<PasswordVerificationResult> {
+    protected async verifyPasswordAsync(store: IUserPasswordStore<TKey, TUser>, user: TUser, password: string): Promise<PasswordVerificationResult> {
         const hash = await store.getPasswordHashAsync(user, this.cancellationToken);
         if (hash == null) {
             return PasswordVerificationResult.Failed;
@@ -464,7 +558,7 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
         return await this.updateUserAsync(user);
     }
 
-        /**
+    /**
      * Generates a password reset token for the specified user, using
      * the configured password reset token provider.
      * @param user The user to generate a password reset token for.
@@ -554,7 +648,7 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
      * @param claim The claim to add.
      * @returns A Promise containing the IdentityResult of the operation.
      */
-    addClaimAsync(user: TUser, claim: Claim): Promise<IdentityResult> {
+    async addClaimAsync(user: TUser, claim: Claim): Promise<IdentityResult> {
         return this.addClaimsAsync(user, [claim]);
     }
 
@@ -880,7 +974,7 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
      * @param user The user to return a flag for.
      * @returns A Promise returning true if the specified user has a confirmed telephone number, otherwise false.
      */
-    isPhoneNumberConfirmedAsync(user: TUser): Promise<boolean> {
+    async isPhoneNumberConfirmedAsync(user: TUser): Promise<boolean> {
         const store = this.getPhoneNumberStore();
         return store.getPhoneNumberConfirmedAsync(user, this.cancellationToken);
     }
@@ -891,7 +985,7 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
      * @param phoneNumber The new phone number the validation token should be sent to.
      * @returns A Promise containing the telephone change number token.
      */
-    generateChangePhoneNumberTokenAsync(user: TUser, phoneNumber: string): Promise<string> {
+    async generateChangePhoneNumberTokenAsync(user: TUser, phoneNumber: string): Promise<string> {
         return this.generateUserTokenAsync(user, this.options.tokens.changePhoneNumberTokenProvider, UserManager.changePhoneNumberTokenPurpose + ":" + phoneNumber);
     }
 
@@ -902,7 +996,7 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
      * @param phoneNumber The telephone number the token was generated for.
      * @returns A Promise returning true if the token is valid, otherwise false.
      */
-    verifyChangePhoneNumberTokenAsync(user: TUser, token: string, phoneNumber: string): Promise<boolean> {
+    async verifyChangePhoneNumberTokenAsync(user: TUser, token: string, phoneNumber: string): Promise<boolean> {
         return this.verifyUserTokenAsync(user, this.options.tokens.changePhoneNumberTokenProvider, UserManager.changePhoneNumberTokenPurpose + ":" + phoneNumber, token);
     }
 
@@ -931,7 +1025,7 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
      * @param purpose The purpose the token will be for.
      * @returns A Promise containing a token for the given user and purpose.
      */
-    generateUserTokenAsync(user: TUser, tokenProvider: string, purpose: string): Promise<string> {
+    async generateUserTokenAsync(user: TUser, tokenProvider: string, purpose: string): Promise<string> {
         const provider = this._tokenProviders.get(tokenProvider);
         if (!provider) {
             throw new Error(`No token provider for ${tokenProvider}`);
@@ -944,7 +1038,7 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
      * @param providerName The name of the provider to register.
      * @param provider The provider to register.
      */
-    registerTokenProvider(providerName: string, provider: IUserTwoFactorTokenProvider<TUser>): void {
+    registerTokenProvider(providerName: string, provider: IUserTwoFactorTokenProvider<TKey, TUser>): void {
         this._tokenProviders.set(providerName, provider);
     }
 
@@ -955,7 +1049,7 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
      */
     async getValidTwoFactorProvidersAsync(user: TUser): Promise<string[]> {
         const results: string[] = [];
-        for (const [key, provider] of Object.entries(this._tokenProviders)) {
+        for (const [key, provider] of this._tokenProviders) {
             if (await provider.canGenerateTwoFactorTokenAsync(this, user)) {
                 results.push(key);
             }
@@ -985,7 +1079,7 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
      * @param tokenProvider The provider which will generate the token.
      * @returns A Promise containing a two factor authentication token for the user.
      */
-    generateTwoFactorTokenAsync(user: TUser, tokenProvider: string): Promise<string> {
+    async generateTwoFactorTokenAsync(user: TUser, tokenProvider: string): Promise<string> {
         const provider = this._tokenProviders.get(tokenProvider);
         if (!provider) {
             throw new Error(`No token provider for ${tokenProvider}`);
@@ -1135,7 +1229,7 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
      * @param claim The claim to look for.
      * @returns A Promise containing a list of users who have the specified claim.
      */
-    getUsersForClaimAsync(claim: Claim): Promise<TUser[]> {
+    async getUsersForClaimAsync(claim: Claim): Promise<TUser[]> {
         const store = this.getClaimStore();
         return store.getUsersForClaimAsync(claim, this.cancellationToken);
     }
@@ -1145,7 +1239,7 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
      * @param roleName The name of the role whose users should be returned.
      * @returns A Promise containing a list of users who are members of the specified role.
      */
-    getUsersInRoleAsync(roleName: string): Promise<TUser[]> {
+    async getUsersInRoleAsync(roleName: string): Promise<TUser[]> {
         const store = this.getUserRoleStore();
         return store.getUsersInRoleAsync(this.normalizeName(roleName)!, this.cancellationToken);
     }
@@ -1157,7 +1251,7 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
      * @param tokenName The name of the token.
      * @returns A Promise containing the authentication token for a user.
      */
-    getAuthenticationTokenAsync(user: TUser, loginProvider: string, tokenName: string): Promise<string | null> {
+    async getAuthenticationTokenAsync(user: TUser, loginProvider: string, tokenName: string): Promise<string | null> {
         const store = this.getAuthenticationTokenStore();
         return store.getTokenAsync(user, loginProvider, tokenName, this.cancellationToken);
     }
@@ -1189,12 +1283,12 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
         return await this.updateUserAsync(user);
     }
 
-        /**
+    /**
      * Returns the authenticator key for the user.
      * @param user The user.
      * @returns A Promise containing the authenticator key.
      */
-    getAuthenticatorKeyAsync(user: TUser): Promise<string | null> {
+    async getAuthenticatorKeyAsync(user: TUser): Promise<string | null> {
         const store = this.getAuthenticatorKeyStore();
         return store.getAuthenticatorKeyAsync(user, this.cancellationToken);
     }
@@ -1284,7 +1378,7 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
      * @param user The user.
      * @returns A Promise containing the number of valid recovery codes.
      */
-    countRecoveryCodesAsync(user: TUser): Promise<number> {
+    async countRecoveryCodesAsync(user: TUser): Promise<number> {
         const store = this.getRecoveryCodeStore();
         return store.countCodesAsync(user, this.cancellationToken);
     }
@@ -1295,34 +1389,6 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
      */
     private utcNow(): Date {
         return new Date();
-    }
-
-    private getUserTwoFactorStore(): IUserTwoFactorStore<TUser> {
-        const cast = this.store as IUserTwoFactorStore<TUser>;
-        if (!cast) throw new Error("Store does not implement IUserTwoFactorStore");
-        return cast;
-    }
-
-    private getUserLockoutStore(): IUserLockoutStore<TUser> {
-        const cast = this.store as IUserLockoutStore<TUser>;
-        if (!cast) throw new Error("Store does not implement IUserLockoutStore");
-        return cast;
-    }
-
-    private getEmailStore(): IUserEmailStore<TUser> {
-        const cast = this.store as IUserEmailStore<TUser>;
-        if (!cast) throw new Error("Store does not implement IUserEmailStore");
-        return cast;
-    }
-
-    private getOptionalEmailStore(): IUserEmailStore<TUser> | null {
-        return this.store as IUserEmailStore<TUser>;
-    }
-
-    private getPhoneNumberStore(): IUserPhoneNumberStore<TUser> {
-        const cast = this.store as IUserPhoneNumberStore<TUser>;
-        if (!cast) throw new Error("Store does not implement IUserPhoneNumberStore");
-        return cast;
     }
 
     /**
@@ -1352,7 +1418,7 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
         return this.updatePasswordHashCore(this.getPasswordStore(), user, newPassword, validatePassword);
     }
 
-    private async updatePasswordHashCore(passwordStore: IUserPasswordStore<TUser>, user: TUser, newPassword: string | null, validatePassword: boolean = true): Promise<IdentityResult> {
+    private async updatePasswordHashCore(passwordStore: IUserPasswordStore<TKey, TUser>, user: TUser, newPassword: string | null, validatePassword: boolean = true): Promise<IdentityResult> {
         if (validatePassword) {
             const validate = await this.validatePasswordAsync(user, newPassword);
             if (!validate.succeeded) {
@@ -1365,40 +1431,8 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
         return IdentityResult.success();
     }
 
-        private getUserRoleStore(): IUserRoleStore<TUser> {
-        const cast = this.store as IUserRoleStore<TUser>;
-        if (!cast) {
-            throw new Error("Store does not implement IUserRoleStore");
-        }
-        return cast;
-    }
-
     private static newSecurityStamp(): string {
         return generateBase32();
-    }
-
-    private getLoginStore(): IUserLoginStore<TUser> {
-        const cast = this.store as IUserLoginStore<TUser>;
-        if (!cast) {
-            throw new Error("Store does not implement IUserLoginStore");
-        }
-        return cast;
-    }
-
-    private getSecurityStore(): IUserSecurityStampStore<TUser> {
-        const cast = this.store as IUserSecurityStampStore<TUser>;
-        if (!cast) {
-            throw new Error("Store does not implement IUserSecurityStampStore");
-        }
-        return cast;
-    }
-
-    private getClaimStore(): IUserClaimStore<TUser> {
-        const cast = this.store as IUserClaimStore<TUser>;
-        if (!cast) {
-            throw new Error("Store does not implement IUserClaimStore");
-        }
-        return cast;
     }
 
     /**
@@ -1476,34 +1510,221 @@ export class UserManager<TUser extends IdentityUser> implements Disposable {
         return await this.store.updateAsync(user, this.cancellationToken);
     }
 
+
+    // private getUserTwoFactorStore(): IUserTwoFactorStore<TUser> {
+    //     const cast = this.store as IUserTwoFactorStore<TUser>;
+    //     if (!cast) throw new Error("Store does not implement IUserTwoFactorStore");
+    //     return cast;
+    // }
+
+    // private getUserLockoutStore(): IUserLockoutStore<TUser> {
+    //     const cast = this.store as IUserLockoutStore<TUser>;
+    //     if (!cast) throw new Error("Store does not implement IUserLockoutStore");
+    //     return cast;
+    // }
+
+    // private getEmailStore(): IUserEmailStore<TKey, TUser> {
+    //     const cast = this.store as IUserEmailStore<TKey, TUser>;
+    //     if (!cast) throw new Error("Store does not implement IUserEmailStore");
+    //     return cast;
+    // }
+
+    // private getOptionalEmailStore(): IUserEmailStore<TKey, TUser> | null {
+    //     return this.store as IUserEmailStore<TKey, TUser>;
+    // }
+
+    // private getPhoneNumberStore(): IUserPhoneNumberStore<TUser> {
+    //     const cast = this.store as IUserPhoneNumberStore<TUser>;
+    //     if (!cast) throw new Error("Store does not implement IUserPhoneNumberStore");
+    //     return cast;
+    // }
+
+    // private getUserRoleStore(): IUserRoleStore<TUser> {
+    //     const cast = this.store as IUserRoleStore<TUser>;
+    //     if (!cast) {
+    //         throw new Error("Store does not implement IUserRoleStore");
+    //     }
+    //     return cast;
+    // }
+    
+    // private getLoginStore(): IUserLoginStore<TUser> {
+    //     const cast = this.store as IUserLoginStore<TUser>;
+    //     if (!cast) {
+    //         throw new Error("Store does not implement IUserLoginStore");
+    //     }
+    //     return cast;
+    // }
+
+    // private getSecurityStore(): IUserSecurityStampStore<TUser> {
+    //     const cast = this.store as IUserSecurityStampStore<TUser>;
+    //     if (!cast) {
+    //         throw new Error("Store does not implement IUserSecurityStampStore");
+    //     }
+    //     return cast;
+    // }
+
+    // private getClaimStore(): IUserClaimStore<TUser> {
+    //     const cast = this.store as IUserClaimStore<TUser>;
+    //     if (!cast) {
+    //         throw new Error("Store does not implement IUserClaimStore");
+    //     }
+    //     return cast;
+    // }
+
+    private getUserTwoFactorStore(): IUserTwoFactorStore<TUser> {
+        const cast = this.store as IUserTwoFactorStore<TUser>;
+        const defaultInstance = new DefaultUserTwoFactorStore<TUser>();
+
+        for (const key of Object.getOwnPropertyNames(Object.getPrototypeOf(defaultInstance))) {
+            if (key !== "constructor" && typeof (cast as any)[key] !== "function") {
+            throw new Error(`Store does not implement IUserTwoFactorStore: missing ${key}`);
+            }
+        }
+        return cast;
+    }
+
+    private getUserLockoutStore(): IUserLockoutStore<TUser> {
+        const cast = this.store as IUserLockoutStore<TUser>;
+        const defaultInstance = new DefaultUserLockoutStore<TUser>();
+
+        for (const key of Object.getOwnPropertyNames(Object.getPrototypeOf(defaultInstance))) {
+            if (key !== "constructor" && typeof (cast as any)[key] !== "function") {
+            throw new Error(`Store does not implement IUserLockoutStore: missing ${key}`);
+            }
+        }
+        return cast;
+    }
+
+    private getEmailStore(): IUserEmailStore<TKey, TUser> {
+        const cast = this.store as IUserEmailStore<TKey, TUser>;
+        const defaultInstance = new DefaultUserEmailStore<TKey, TUser>();
+
+        for (const key of Object.getOwnPropertyNames(Object.getPrototypeOf(defaultInstance))) {
+            if (key !== "constructor" && typeof (cast as any)[key] !== "function") {
+            throw new Error(`Store does not implement IUserEmailStore: missing ${key}`);
+            }
+        }
+        return cast;
+    }
+
+    private getOptionalEmailStore(): IUserEmailStore<TKey, TUser> | null {
+    // Optional: return null if not fully implemented
+        const cast = this.store as IUserEmailStore<TKey, TUser>;
+        const defaultInstance = new DefaultUserEmailStore<TKey, TUser>();
+
+        for (const key of Object.getOwnPropertyNames(Object.getPrototypeOf(defaultInstance))) {
+            if (key !== "constructor" && typeof (cast as any)[key] !== "function") {
+                return null;
+            }
+        }
+        return cast;
+    }
+
+    private getPhoneNumberStore(): IUserPhoneNumberStore<TUser> {
+        const cast = this.store as IUserPhoneNumberStore<TUser>;
+        const defaultInstance = new DefaultUserPhoneNumberStore<TUser>();
+
+        for (const key of Object.getOwnPropertyNames(Object.getPrototypeOf(defaultInstance))) {
+            if (key !== "constructor" && typeof (cast as any)[key] !== "function") {
+            throw new Error(`Store does not implement IUserPhoneNumberStore: missing ${key}`);
+            }
+        }
+        return cast;
+    }
+
+    private getUserRoleStore(): IUserRoleStore<TUser> {
+        const cast = this.store as IUserRoleStore<TUser>;
+        const defaultInstance = new DefaultUserRoleStore<TUser>();
+
+        for (const key of Object.getOwnPropertyNames(Object.getPrototypeOf(defaultInstance))) {
+            if (key !== "constructor" && typeof (cast as any)[key] !== "function") {
+            throw new Error(`Store does not implement IUserRoleStore: missing ${key}`);
+            }
+        }
+        return cast;
+    }
+
+    private getLoginStore(): IUserLoginStore<TUser> {
+        const cast = this.store as IUserLoginStore<TUser>;
+        const defaultInstance = new DefaultUserLoginStore<TUser>();
+
+        for (const key of Object.getOwnPropertyNames(Object.getPrototypeOf(defaultInstance))) {
+            if (key !== "constructor" && typeof (cast as any)[key] !== "function") {
+            throw new Error(`Store does not implement IUserLoginStore: missing ${key}`);
+            }
+        }
+        return cast;
+    }
+
+    private getSecurityStore(): IUserSecurityStampStore<TUser> {
+        const cast = this.store as IUserSecurityStampStore<TUser>;
+        const defaultInstance = new DefaultUserSecurityStampStore<TUser>();
+
+        for (const key of Object.getOwnPropertyNames(Object.getPrototypeOf(defaultInstance))) {
+            if (key !== "constructor" && typeof (cast as any)[key] !== "function") {
+            throw new Error(`Store does not implement IUserSecurityStampStore: missing ${key}`);
+            }
+        }
+        return cast;
+    }
+
+    private getClaimStore(): IUserClaimStore<TUser> {
+        const cast = this.store as IUserClaimStore<TUser>;
+        const defaultInstance = new DefaultUserClaimStore<TUser>();
+
+        for (const key of Object.getOwnPropertyNames(Object.getPrototypeOf(defaultInstance))) {
+            if (key !== "constructor" && typeof (cast as any)[key] !== "function") {
+            throw new Error(`Store does not implement IUserClaimStore: missing ${key}`);
+            }
+        }
+        return cast;
+    }
+
     private getAuthenticatorKeyStore(): IUserAuthenticatorKeyStore<TUser> {
         const cast = this.store as IUserAuthenticatorKeyStore<TUser>;
-        if (!cast) {
-            throw new Error("Store does not implement IUserAuthenticatorKeyStore");
+        const defaultInstance = new DefaultAuthenticatorKeyStore<TUser>();
+
+        for (const key of Object.getOwnPropertyNames(Object.getPrototypeOf(defaultInstance))) {
+            if (key !== "constructor" && typeof (cast as any)[key] !== "function") {
+            throw new Error(`Store does not implement IUserAuthenticatorKeyStore: missing ${key}`);
+            }
+        }
+        return cast;
+    }
+
+    private getAuthenticationTokenStore(): IUserAuthenticationTokenStore<TKey, TUser> {
+        const cast = this.store as IUserAuthenticationTokenStore<TKey, TUser>;
+        const defaultInstance = new DefaultUserAuthenticationTokenStore<TKey, TUser>();
+
+        for (const key of Object.getOwnPropertyNames(Object.getPrototypeOf(defaultInstance))) {
+            if (key !== "constructor" && typeof (cast as any)[key] !== "function") {
+            throw new Error(`Store does not implement IUserAuthenticationTokenStore: missing ${key}`);
+            }
         }
         return cast;
     }
 
     private getRecoveryCodeStore(): IUserTwoFactorRecoveryCodeStore<TUser> {
         const cast = this.store as IUserTwoFactorRecoveryCodeStore<TUser>;
-        if (!cast) {
-            throw new Error("Store does not implement IUserTwoFactorRecoveryCodeStore");
+        const defaultInstance = new DefaultTwoFactorRecoveryCodeStore<TUser>();
+
+        for (const key of Object.getOwnPropertyNames(Object.getPrototypeOf(defaultInstance))) {
+            if (key !== "constructor" && typeof (cast as any)[key] !== "function") {
+            throw new Error(`Store does not implement IUserTwoFactorRecoveryCodeStore: missing ${key}`);
+            }
         }
         return cast;
     }
 
-    private getAuthenticationTokenStore(): IUserAuthenticationTokenStore<TUser> {
-        const cast = this.store as IUserAuthenticationTokenStore<TUser>;
-        if (!cast) {
-            throw new Error("Store does not implement IUserAuthenticationTokenStore");
-        }
-        return cast;
-    }
 
-    private getPasswordStore(): IUserPasswordStore<TUser> {
-        const cast = this.store as IUserPasswordStore<TUser>;
-        if (!cast) {
-            throw new Error("Store does not implement IUserPasswordStore");
+    private getPasswordStore(): IUserPasswordStore<TKey, TUser> {
+        const cast = this.store as IUserPasswordStore<TKey, TUser>;
+        const defaultInstance = new DefaultUserPasswordStore<TKey, TUser>();
+
+        for (const key of Object.getOwnPropertyNames(Object.getPrototypeOf(defaultInstance))) {
+            if (key !== "constructor" && typeof (cast as any)[key] !== "function") {
+            throw new Error(`Store does not implement IUserPasswordStore: missing ${key}`);
+            }
         }
         return cast;
     }

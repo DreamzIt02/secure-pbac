@@ -18,6 +18,7 @@ export function resolveClaimsRequirement(claims: IClaim[]): IPolicyClaimsAuthori
             claims_req.push({
                 [key]: { 
                     claimType: key, allowedValues: dict[key].size > 0 ? Object.freeze([...dict[key]]) : undefined, emptyAllowedValues: true }});
+
     return claims_req
 }
 
@@ -25,20 +26,18 @@ export function resolveClaimsDictionary(claims: IClaim[]) {
     const dict: { [claimType: string]: Set<string> } = {};
     for (let i = 0; i < claims.length; i++) {
         const claim = claims[i];
-        if (dict.hasOwnProperty(claim.type))
-            if (claim.value)
-                dict[claim.type].add(claim.value);
-        else {
+
+        if (!dict.hasOwnProperty(claim.type))
             dict[claim.type] = new Set<string>();
-            if (claim.value)
-                dict[claim.type].add(claim.value);
-        }
+
+        if (claim.value)
+            dict[claim.type].add(claim.value);
     }
     return dict;
 }
 
-export function Authorize(roles?: Iterable<string>, claims?: Iterable<IClaim>) {
-  return function (target: any, propertyKey?: string, descriptor?: PropertyDescriptor) {
+export function Authorize(roles?: Iterable<string>, claims?: Iterable<IClaim>): Function {
+  return function (target: object, propertyKey?: string | symbol, descriptor?: PropertyDescriptor) {
     const requirements: IAuthorizationRequirement[] = [];
 
     if (roles && !isEmpty(roles)) {
@@ -61,6 +60,16 @@ export function Authorize(roles?: Iterable<string>, claims?: Iterable<IClaim>) {
     });
   };
 }
+
+// @Authorize(["admin"])
+// class TestClass {
+//   @Authorize(["admin"])
+//   method() {}
+
+//   @Authorize(["editor"])
+//   someProperty!: string;
+// }
+
 
 // ## 🔧 Example Usage with Routes/Controllers
 

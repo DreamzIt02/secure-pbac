@@ -1,7 +1,5 @@
-import { AuthorizeClaimTypeEnum, Claim, ClaimsIdentity, ClaimsPrincipal, SiteClaim } from "../claims/index.js";
-import { AuthorizationOptions, AuthorizationPolicyBuilder } from "../core/index.js";
+import { Claim, ClaimsIdentity, ClaimsPrincipal, SiteClaim } from "../claims/index.js";
 import { HttpContext } from "../http/index.js";
-import { AuthorizeRoleEnum, SiteRole } from "../roles/index.js";
 import { KeyValuePair, StringValues } from "../types/dictionary.js";
 
 export type Policy = string;
@@ -235,7 +233,7 @@ export class GroupPolicy {
             return true;
 
         const claim = GroupPolicy.requestPolicyClaim(policy);
-        return context.user.hasClaim(c => c.type === claim.type && c.value === claim.value);
+        return context.user.hasClaim(c => SiteClaim.isTypeEqual(c.type, claim.type) && SiteClaim.isValueEqual(c.value, claim.value));
     }
 
     /**

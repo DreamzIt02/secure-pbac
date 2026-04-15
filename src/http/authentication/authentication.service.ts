@@ -1,5 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to we under the MIT license.
+
 
 import { ClaimsPrincipal } from "../../claims/index.js";
 import { HttpContext } from "../http.context.js";
@@ -58,6 +57,5 @@ export interface IAuthenticationService {
   signOutAsync(context: HttpContext, scheme: string | null, properties: AuthenticationProperties | null): Promise<void>;
 }
 
-export class AuthenticationService implements IAuthenticationService {
-  
-}
+// FIXME: Implement AuthenticationService
+export class AuthenticationService implements IAuthenticationService { }

@@ -1,4 +1,4 @@
-// Licensed under MIT-style license (conceptual port of ASP.NET Core Authorization)
+
 
 import { AuthorizationPolicy } from "./authorization.policy.js";
 import { AuthorizationOptions } from "./authorization.options.js";

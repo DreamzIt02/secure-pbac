@@ -1,4 +1,4 @@
-// Licensed under MIT-style license (conceptual port of ASP.NET Core Authorization)
+
 
 import { AuthorizationResult } from "./authorization.result.js";
 import { IAuthorizationRequirement } from "./types/index.js";

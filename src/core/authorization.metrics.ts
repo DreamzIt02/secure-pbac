@@ -88,7 +88,7 @@ export class DefaultMeterFactory implements IMeterFactory {
  * Mirrors the .NET implementation for tracking authorization attempts.
  */
 export class AuthorizationMetrics {
-  public static readonly meterName: string = "Microsoft.AspNetCore.Authorization";
+  public static readonly meterName: string = "PBAC.Secure.Authorization";
 
   private readonly meter: Meter;
   private readonly authorizedCount: Counter<number>;
@@ -101,7 +101,7 @@ export class AuthorizationMetrics {
     this.meter = meterFactory.create(AuthorizationMetrics.meterName);
 
     this.authorizedCount = this.meter.createCounter<number>(
-      "aspnetcore.authorization.attempts",
+      "secure.authorization.attempts",
       "{attempt}",
       "The total number of authorization attempts."
     );
@@ -139,16 +139,16 @@ export class AuthorizationMetrics {
     exception: DOMException | null
   ): void {
     const tags = new TagList([
-      ["aspnetcore.user.is_authenticated", user.identity?.isAuthenticated ?? false]
+      ["secure.user.is_authenticated", user.identity?.isAuthenticated ?? false]
     ]);
 
     if (policyName !== null) {
-      tags.add("aspnetcore.authorization.policy", policyName);
+      tags.add("secure.authorization.policy", policyName);
     }
 
     if (result !== null) {
       const resultTagValue = result.succeeded ? "success" : "failure";
-      tags.add("aspnetcore.authorization.result", resultTagValue);
+      tags.add("secure.authorization.result", resultTagValue);
     }
 
     if (exception !== null) {

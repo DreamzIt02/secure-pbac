@@ -1,8 +1,8 @@
 import { createServer, IncomingMessage, ServerResponse, Server } from "http";
 import { useAuthorization } from "./middlewares/index.js";
 import { AuthorizationOptions, IAuthorizationService } from "./core/index.js";
-import { AuthorizationExtensions } from "./policies/index.js";
 import { IAuthorizationRequestHandlerContext } from "./core/types/index.js";
+import { AuthorizationExtensions } from "./policy/index.js";
 
 export type Middleware = (req: IncomingMessage, res: ServerResponse, next: () => void) => void;
 

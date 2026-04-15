@@ -2,8 +2,16 @@ import { ServerResponse } from "http"
 import { IncomingMessage } from "http"
 
 export type { IAuthorizeData } from "./authorize.data.js"
-export { IdentityRole } from "./identity.role.js"
-export { IdentityUser } from "./identity.user.js"
+export { IdentityRole, IdentityRoleGeneric } from "./identity.role.js"
+export { IdentityRoleClaim } from "./identity.role.claim.js"
+
+export { IdentityUserClaim } from "./identity.user.claim.js"
+export { IdentityUser, IdentityUserGeneric } from "./identity.user.js"
+
+export { IdentityUserLogin } from "./identity.user.login.js"
+export { IdentityUserRole} from "./identity.user.role.js"
+
+export { IdentityUserToken } from "./identity.user.token.js"
 
 export { PasswordVerificationResult } from "./password.verification.result.js"
 export { UserLoginInfo } from "./user.login.info.js"

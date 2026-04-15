@@ -12,7 +12,9 @@
     "resolveJsonModule": true,
     "sourceMap": true,
     "types": ["vitest", "node"],
-    "isolatedModules": true
+    "isolatedModules": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
   },
   "include": ["src/**/*.ts", "tests/**/*.ts"],
   "exclude": ["node_modules", "dist", "vitest.config.ts"]

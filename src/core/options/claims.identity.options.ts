@@ -34,7 +34,7 @@ export class ClaimsIdentityOptions {
 
   /**
    * Gets or sets the ClaimType used for the security stamp claim.
-   * Defaults to "AspNet.Identity.SecurityStamp".
+   * Defaults to "App.Identity.SecurityStamp".
    */
-  public securityStampClaimType: string = "AspNet.Identity.SecurityStamp";
+  public securityStampClaimType: string = "App.Identity.SecurityStamp";
 }

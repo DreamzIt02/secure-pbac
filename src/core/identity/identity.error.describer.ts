@@ -63,14 +63,14 @@ export class IdentityErrorDescriber {
   /**
    * Returns an error indicating the specified user name is invalid.
    */
-  invalidUserName(userName?: string): IdentityError {
+  invalidUserName(userName?: string | null): IdentityError {
     return new IdentityError("InvalidUserName", `User name '${userName ?? ""}' is invalid.`);
   }
 
   /**
    * Returns an error indicating the specified email is invalid.
    */
-  invalidEmail(email?: string): IdentityError {
+  invalidEmail(email?: string | null): IdentityError {
     return new IdentityError("InvalidEmail", `Email '${email ?? ""}' is invalid.`);
   }
 
@@ -91,7 +91,7 @@ export class IdentityErrorDescriber {
   /**
    * Returns an error indicating the specified role name is invalid.
    */
-  invalidRoleName(role?: string): IdentityError {
+  invalidRoleName(role?: string | null): IdentityError {
     return new IdentityError("InvalidRoleName", `Role name '${role ?? ""}' is invalid.`);
   }
 

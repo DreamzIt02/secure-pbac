@@ -1,3 +1,4 @@
+import { randomUUID } from "../utils.js";
 import { Claim } from "./claim.js";
 
 // Claim type identifiers
@@ -67,7 +68,7 @@ export class SiteClaim {
   static SignInClaimType = 'sign_in';
 
   static newSignInClaim(): Claim {
-    return new Claim(SiteClaim.SignInClaimType, crypto.randomUUID());
+    return new Claim(SiteClaim.SignInClaimType, randomUUID());
   }
 
   static defaultClaim(): Claim {

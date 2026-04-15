@@ -1,5 +1,6 @@
 // src/core/default-password-hasher.ts
-import { promisify, randomBytes } from "../utils.js";
+
+import { promisify, randomBytes } from "../../utils.js";
 
 const scryptAsync = promisify();
 
