@@ -1,8 +1,10 @@
 import { createServer, IncomingMessage, ServerResponse, Server } from "http";
 import { useAuthorization } from "./middlewares/index.js";
-import { AuthorizationOptions, IAuthorizationService } from "./core/index.js";
-import { IAuthorizationRequestHandlerContext } from "./core/types/index.js";
-import { AuthorizationExtensions } from "./policy/index.js";
+import { AUTHORIZATION_SERVICE, AuthorizationHandler, AuthorizationOptions, ClaimsAuthorizationRequirement, DefaultAuthorizationEvaluator, DefaultAuthorizationHandlerContextFactory, DefaultAuthorizationHandlerProvider, DefaultAuthorizationPolicyProvider, DefaultAuthorizationService, IAuthorizationService, RolesAuthorizationRequirement } from "./core/index.js";
+import { IAuthorizationRequestHandlerContext, IdentityUser } from "./core/types/index.js";
+import { AuthorizationExtensions, DefaultPolicyAuthorizationService, IPolicyAuthorizationService, POLICY_AUTHORIZATION_SERVICE } from "./policy/index.js";
+import { ServiceCollection, ServiceProvider } from "./App.services.js";
+import { AllowedPrimaryKeysSafe } from "./contexts/index.js";
 
 export type Middleware = (req: IncomingMessage, res: ServerResponse, next: () => void) => void;
 
@@ -29,36 +31,90 @@ export type Middleware = (req: IncomingMessage, res: ServerResponse, next: () =>
 // ```
 
 export abstract class AppIdentityContext extends AuthorizationExtensions {
-    private middlewares!: Middleware[];
+    private middlewares!  : Middleware[];
+    private authorization!: boolean;
 
-    constructor(protected options: AuthorizationOptions) {
+    public static readonly PROVIDER_IDENTITY: ServiceProvider = new ServiceProvider([]);
+
+    constructor(protected readonly options: AuthorizationOptions) {
         super(options)
+        this.middlewares = [];
     }
 
-    protected abstract getRouteHandler: (req: IncomingMessage) => IAuthorizationRequestHandlerContext;
+    protected abstract getRouteHandler : (req: IncomingMessage) => IAuthorizationRequestHandlerContext;
+    protected abstract registerServices: ()  => void;
+
+    protected registerIdentityServices(
+        services: ServiceCollection,
+        configureOptions?: (options: AuthorizationOptions) => AuthorizationOptions) {
+
+        // Cast any to enforce readonly
+        (this.options as any) = typeof configureOptions === "function" ? configureOptions(this.options) : this.options;
+        const options = { value: this.options };
+        services.addSingleton(AUTHORIZATION_SERVICE, () => {
+            return new DefaultAuthorizationService(
+                new DefaultAuthorizationPolicyProvider(options),
+                new DefaultAuthorizationHandlerProvider([]),
+                new DefaultAuthorizationHandlerContextFactory(),
+                new DefaultAuthorizationEvaluator(),
+                options
+            );
+        });
+        // Cast any, to omit readonly
+        (AppIdentityContext.PROVIDER_IDENTITY as any) = services.build();
+    }
+
+    protected registerPolicyServices<TKey extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey>>(
+        services: ServiceCollection,
+        configureOptions?: (options: AuthorizationOptions) => AuthorizationOptions) {
+        // Cast any to enforce readonly
+        (this.options as any) = typeof configureOptions === "function" ? configureOptions(this.options) : this.options;
+        //
+        const authService = AppIdentityContext.PROVIDER_IDENTITY.resolve<IAuthorizationService>(AUTHORIZATION_SERVICE);
+        const passwordHasher = AppIdentityContext.PROVIDER_IDENTITY.resolve<IAuthorizationService>(AUTHORIZATION_SERVICE);
+        // Fallback to add identity services
+        const options = { value: this.options };
+        services.addSingleton(POLICY_AUTHORIZATION_SERVICE, () => {
+            return new DefaultPolicyAuthorizationService(
+                authService,
+                new DefaultAuthorizationHandlerProvider([]),
+                new DefaultAuthorizationHandlerContextFactory(),
+                new DefaultAuthorizationEvaluator(),
+                options
+            );
+        });
+        // Cast any, to omit readonly
+        (AppIdentityContext.PROVIDER_IDENTITY as any) = services.build();
+    }
 
     addAuthorization(
         configureOptions?: (options: AuthorizationOptions) => AuthorizationOptions) {
         // This ensures that authorization is added to app context
-        this.middlewares = [];
-        
-        if (typeof configureOptions === "function") {
-            this.options = configureOptions(this.options)
-        }
+        this.authorization = true;
+        // Cast any to enforce readonly
+        (this.options as any) = typeof configureOptions === "function" ? configureOptions(this.options) : this.options;
     }
 
     useAuthorization(
-        configureServices?: (services: IAuthorizationService) => IAuthorizationService) {
-        if (!this.middlewares) {
-        throw new Error("We must call addAuthorization() first");
+        /*configureServices?: (services: IAuthorizationService) => IAuthorizationService*/) {
+        if (!this.authorization) {
+            throw new Error("We must call addAuthorization() first");
         }
+        const authService = AppIdentityContext.PROVIDER_IDENTITY
+                                .resolve<IAuthorizationService>(AUTHORIZATION_SERVICE);
+
+        // const _configureServices = typeof configureServices === "function" 
+        //                                 ? configureServices 
+        //                                 : () => AppIdentityContext.PROVIDER_AUTHORIZATION
+        //                                             .resolve<IAuthorizationService>(AppIdentityContext.SERVICE_AUTHORIZATION);
+        // const _configureOptions = (options: AuthorizationOptions) => 
+        //                             this.options = { ...options, ...this.options } as AuthorizationOptions;
         this.middlewares.push(
-            useAuthorization(this.getRouteHandler, 
-                options => { 
-                    this.options = { ...options, ...this.options } as AuthorizationOptions;
-                    return this.options
-                },
-                configureServices
+            useAuthorization(
+                this.getRouteHandler, 
+                // _configureOptions,
+                // _configureServices
+                authService
             ));
     }
 
@@ -91,33 +147,6 @@ export abstract class AppIdentityContext extends AuthorizationExtensions {
             configuredServer.on("request", (req, res) => {
             this.runPipeline(req, res, pipeline);
             });
-
-            // Wrap the user-provided server’s request listener to prepend our pipeline
-            // const originalEmit = configuredServer.emit.bind(configuredServer);
-
-            // configuredServer.emit = (event: string, ...args: any[]) => {
-            //     if (event === "request") {
-            //         const [req, res] = args;
-            //         let i = 0;
-            //         const next = () => {
-            //         const mw = pipeline[i++];
-            //         if (mw) {
-            //             mw(req, res, next);
-            //         } else {
-            //             const handler = this.getRouteHandler(req);
-            //             if (handler) {
-            //                 handler(req, res);
-            //             } else {
-            //             res.statusCode = 404;
-            //             res.end("Not Found");
-            //             }
-            //         }
-            //         };
-            //         next();
-            //         return true; // handled
-            //     }
-            //     return originalEmit(event, ...args);
-            // };
 
             server = configuredServer;
         } else {

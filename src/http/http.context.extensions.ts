@@ -9,6 +9,7 @@ declare module "http" {
 }
 
 ServerResponse.prototype.challenge = function () {
+  console.log('Challenge ', )
   this.statusCode = 401;
   this.setHeader("WWW-Authenticate", "Bearer");
   this.end("Unauthorized");

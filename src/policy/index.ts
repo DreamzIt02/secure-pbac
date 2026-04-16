@@ -3,6 +3,7 @@ export { PolicyAuthorizationResult } from "./policy.authorization.result.js"
 export { DefaultPolicyAuthorizationService } from "./policy.authorization.service.impl.js"
 
 export type { IPolicyAuthorizationService } from "./policy.authorization.service.js"
+export { POLICY_AUTHORIZATION_SERVICE } from "./policy.authorization.service.js"
 export { PolicyEvaluator } from "./policy.evaluator.js"
 export type { IPolicyEvaluator } from "./policy.evaluator.js"
 export { SiteManager, PriorManagers } from "./site.manager.js"

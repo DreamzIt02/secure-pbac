@@ -32,6 +32,7 @@ export abstract class AuthorizationHandler<
     for (const req of [...context.requirements].filter(
       (r): r is TRequirement => this.isRequirementType(r)
     )) {
+
       if (resource) {
         await this.handleRequirementAsync(context, req, resource);
       } else {

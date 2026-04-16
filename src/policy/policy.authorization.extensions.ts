@@ -4,8 +4,8 @@ import { GroupPolicy, IPolicy, PolicyEnum } from "../policies/index.js";
 import { AuthorizeRoleEnum, SiteRole } from "../roles/index.js";
 
 export abstract class AuthorizationExtensions {
-    constructor(protected authOptions: AuthorizationOptions) {
-    }
+    constructor(protected authOptions: AuthorizationOptions) { }
+    
     addPolicyAuthorization(configureOptions?: (options: AuthorizationOptions) => AuthorizationOptions): AuthorizationOptions {
         this.authOptions = typeof configureOptions === "function" 
                             ? configureOptions(this.authOptions) 

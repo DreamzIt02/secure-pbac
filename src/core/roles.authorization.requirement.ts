@@ -54,6 +54,7 @@ export class RolesAuthorizationRequirement
     requirement: RolesAuthorizationRequirement,
     resource?: object | null
   ): Promise<void> {
+
     if (context.user) {
       let found = false;
 

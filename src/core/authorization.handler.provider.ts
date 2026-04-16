@@ -27,7 +27,7 @@ export class DefaultAuthorizationHandlerProvider implements IAuthorizationHandle
    * Creates a new instance of DefaultAuthorizationHandlerProvider.
    * @param handlers The IAuthorizationHandlers.
    */
-  constructor(handlers: Iterable<IAuthorizationHandler>) {
+  constructor(private readonly handlers: Iterable<IAuthorizationHandler>) {
     ArgumentNullThrowHelper.throwIfNull(handlers);
 
     this.handlersPromise = Promise.resolve(handlers);
@@ -39,9 +39,23 @@ export class DefaultAuthorizationHandlerProvider implements IAuthorizationHandle
    * @returns A promise resolving to the list of handlers.
    */
   public getHandlersAsync(context: AuthorizationHandlerContext): Promise<Iterable<IAuthorizationHandler>> {
-    // FIXME: if (!this.handlersPromise)
-    //   return new DefaultAuthorizationHandlerProvider(context.requirements as Iterable<IAuthorizationHandler>).handlersPromise;
+    const result: IAuthorizationHandler[] = [];
 
+    // Add global handlers
+    for (const h of this.handlers) {
+      result.push(h);
+    }
+
+    // Add self-handling requirements
+    for (const req of context.requirements) {
+      if (typeof (req as any).handleRequirementAsync === "function") {
+        result.push(req as unknown as IAuthorizationHandler);
+      }
+    }
+    (this.handlers as any) = Object.freeze([...result]);
+    (this.handlersPromise as any) = Promise.resolve(this.handlers);
+    
     return this.handlersPromise;
   }
+  
 }

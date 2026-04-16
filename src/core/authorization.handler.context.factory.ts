@@ -38,8 +38,8 @@ export class DefaultAuthorizationHandlerContextFactory
    */
   public createContext(
     requirements: Iterable<IAuthorizationRequirement>,
-    user: ClaimsPrincipal,
-    resource: object | null
+    user        : ClaimsPrincipal,
+    resource    : object | null
   ): AuthorizationHandlerContext {
     return new AuthorizationHandlerContext(Object.freeze([...requirements]), user, resource);
   }

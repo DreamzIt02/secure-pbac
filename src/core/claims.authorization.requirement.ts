@@ -49,6 +49,7 @@ export class ClaimsAuthorizationRequirement
     requirement: ClaimsAuthorizationRequirement,
     resource?: object
   ): Promise<void> {
+    
     if (context.user) {
       let found = false;
 

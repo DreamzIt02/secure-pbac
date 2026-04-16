@@ -48,15 +48,15 @@ export function Authorize(roles?: Iterable<string>, claims?: Iterable<IClaim>): 
         for (const key in dict)
             requirements.push(new ClaimsAuthorizationRequirement(key, dict[key].size > 0 ? Object.freeze([...dict[key]]) : undefined))
     }
-    
+
     const fn = descriptor ? descriptor.value : target;
     const existing = (fn as any).__requirements || [];
 
     Reflect.defineProperty(fn, "__requirements", {
-      value: [...existing, ...requirements],
-      writable: false,
-      enumerable: false,
-      configurable: true
+        value: [...existing, ...requirements],
+        writable: false,
+        enumerable: false,
+        configurable: true,
     });
   };
 }

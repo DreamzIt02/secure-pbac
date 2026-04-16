@@ -1,4 +1,5 @@
-import { DefaultAuthorizationService, IAuthorizationService } from "../core/index.js";
+import { AppIdentityContext } from "../App.context.js";
+import { AUTHORIZATION_SERVICE, IAuthorizationService } from "../core/index.js";
 import { IAuthorizationRequirement } from "../core/types/index.js";
 import { ClaimExpression, PolicyClaimsAuthorizationRequirement, PolicyDefaultAuthorizationRequirement, PolicyExpression, PolicyRolesAuthorizationRequirement, RoleExpression } from "../policy/index.js";
 
@@ -9,7 +10,7 @@ export function AuthorizePolicy(
 ): Function {
   return function (target: object, propertyKey?: string | symbol, descriptor?: PropertyDescriptor) {
     const requirements: IAuthorizationRequirement[] = [];
-    const authService: IAuthorizationService = new DefaultAuthorizationService();
+    const authService : IAuthorizationService       = AppIdentityContext.PROVIDER_IDENTITY.resolve<IAuthorizationService>(AUTHORIZATION_SERVICE);
 
     if (policies) {
       requirements.push(new PolicyDefaultAuthorizationRequirement(policies, authService))
