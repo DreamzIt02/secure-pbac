@@ -1,5 +1,6 @@
 
 
+import { AsyncLocalStorage } from "async_hooks";
 import { HttpContext } from "./http.context.js";
 
 /**
@@ -21,22 +22,24 @@ export interface IHttpContextAccessor {
  * Provides an implementation of IHttpContextAccessor based on the current execution context.
  */
 export class HttpContextAccessor implements IHttpContextAccessor {
-  private static httpContextCurrent: { value?: HttpContextHolder } = {};
+  protected static readonly httpContextCurrent: AsyncLocalStorage<HttpContextHolder> = new AsyncLocalStorage<HttpContextHolder>();
 
+  protected static factory(value: HttpContext) {
+    return new HttpContextHolder(value);
+  }
+  
   public get httpContext(): HttpContext | null {
-    return HttpContextAccessor.httpContextCurrent.value?.context ?? null;
+    return HttpContextAccessor.httpContextCurrent.getStore()?.context ?? null;
   }
 
   public set httpContext(value: HttpContext | null) {
     // Clear current HttpContext trapped in the AsyncLocals, as its done.
-    if (HttpContextAccessor.httpContextCurrent.value) {
-      HttpContextAccessor.httpContextCurrent.value.context = null;
-    }
+    HttpContextAccessor.httpContextCurrent.disable();
 
-    if (value != null) {
+    if (value) {
       // Use an object indirection to hold the HttpContext in the AsyncLocal,
       // so it can be cleared in all ExecutionContexts when its cleared.
-      HttpContextAccessor.httpContextCurrent.value = new HttpContextHolder(value);
+      HttpContextAccessor.httpContextCurrent.enterWith(new HttpContextHolder(value));
     }
   }
 }

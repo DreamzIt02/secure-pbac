@@ -29,7 +29,7 @@ export abstract class AuthorizationExtensions {
 
         return this.authOptions;
     }
-
+    
     private getPolicyAuthorization(): IPolicy[] {
         return [
             {

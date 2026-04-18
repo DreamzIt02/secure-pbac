@@ -1,4 +1,6 @@
+import { TOKENS } from "../App.tokens.js";
 import { ClaimsPrincipal } from "../claims/index.js";
+import { Inject } from "../decorators/index.js";
 import { AuthorizationResult } from "./authorization.result.js";
 
 /**
@@ -83,21 +85,24 @@ export class DefaultMeterFactory implements IMeterFactory {
   }
 }
 
+export interface IAuthorizationMetrics {
+
+}
 /**
  * Internal sealed class AuthorizationMetrics.
  * Mirrors the .NET implementation for tracking authorization attempts.
  */
-export class AuthorizationMetrics {
+export class AuthorizationMetrics implements IAuthorizationMetrics {
   public static readonly meterName: string = "PBAC.Secure.Authorization";
 
-  private readonly meter: Meter;
-  private readonly authorizedCount: Counter<number>;
+  private readonly meter!: Meter;
+  private readonly authorizedCount!: Counter<number>;
 
   /**
    * Creates a new instance of AuthorizationMetrics.
    * @param meterFactory The IMeterFactory used to create meters.
    */
-  constructor(meterFactory: IMeterFactory) {
+  constructor(@Inject(TOKENS.METER_FACTORY) meterFactory: IMeterFactory) {
     this.meter = meterFactory.create(AuthorizationMetrics.meterName);
 
     this.authorizedCount = this.meter.createCounter<number>(

@@ -1,5 +1,4 @@
-import { ServerResponse } from "http"
-import { IncomingMessage } from "http"
+import { IHttpRequestHandlerContext } from "../../http/types.js"
 
 export type { IAuthorizeData } from "./authorize.data.js"
 export { IdentityRole, IdentityRoleGeneric } from "./identity.role.js"
@@ -40,10 +39,9 @@ export interface IAuthorizationHandler {
  * 
  * Then we can call that function, while still reading `__allowAnonymous` and `__requirements` via `Reflect`.
  */
-export interface IAuthorizationRequestHandlerContext {
+export interface IAuthorizationRequestHandlerContext extends IHttpRequestHandlerContext {
   __allowAnonymous: boolean;
-  __requirements: Iterable<IAuthorizationHandler>;
-  __handler: (req: IncomingMessage, res: ServerResponse) => void; // add this
+  __requirements  : Iterable<IAuthorizationHandler>;
 }
 
 // authorization.policy.builder.contract.ts

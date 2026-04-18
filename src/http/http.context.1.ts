@@ -1,6 +1,4 @@
 // http.context.1.ts
-
-import { AsyncLocalStorage } from "async_hooks";
 import { IncomingMessage, ServerResponse } from "http";
 import { AuthenticateResult } from "./authentication/authenticate.result.js";
 import { ClaimsIdentity, ClaimsPrincipal } from "../claims/index.js";
@@ -9,12 +7,11 @@ import {
   ConnectionInfo,
   HttpContext as HttpContextBase,
   IFeatureCollection,
-  IServiceProvider,
-  ISession,
   WebSocketManager
 } from "./http.context.js";
 import { HttpContextAccessor as HttpContextAccessorBase } from "./http.context.accessor.js";
 import { CancellationToken } from "../types/cancellation.js";
+import { IServiceProvider, ISession } from "../features/index.js";
 
 /**
  * Encapsulates HTTP-specific information about an individual request.
@@ -115,25 +112,22 @@ export class NodeHttpContext extends HttpContextBase {
 /**
  * Provides access to the current HttpContext using AsyncLocalStorage.
  *
- * This mirrors the behavior of ASP.NET Core's HttpContextAccessor.
+ * Mirrors ASP.NET Core's IHttpContextAccessor.
  */
 export class NodeHttpContextAccessor extends HttpContextAccessorBase {
-  private static storage = new AsyncLocalStorage<NodeHttpContext>();
-
   /**
    * Runs a callback within the scope of a given HttpContext.
-   * This ensures that `NodeHttpContextAccessor.current` will return
-   * the correct context inside async calls.
+   * Ensures that NodeHttpContextAccessor.current returns the correct context inside async calls.
    */
   static runWithContext<T>(context: NodeHttpContext, callback: () => T): T {
-    return this.storage.run(context, callback);
+    return this.httpContextCurrent.run(this.factory(context), callback);
   }
 
   /**
    * Gets the current HttpContext for the executing async flow.
    */
-  static get current(): NodeHttpContext | undefined {
-    return this.storage.getStore();
+  static get current(): NodeHttpContext | null {
+    return this.httpContextCurrent.getStore()?.context as NodeHttpContext ?? null;
   }
 }
 

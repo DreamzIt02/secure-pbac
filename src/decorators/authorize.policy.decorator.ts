@@ -10,7 +10,7 @@ export function AuthorizePolicy(
 ): Function {
   return function (target: object, propertyKey?: string | symbol, descriptor?: PropertyDescriptor) {
     const requirements: IAuthorizationRequirement[] = [];
-    const authService : IAuthorizationService       = AppIdentityContext.PROVIDER_IDENTITY.resolve<IAuthorizationService>(AUTHORIZATION_SERVICE);
+    const authService : IAuthorizationService       = AppIdentityContext.PROVIDER.getRequiredService<IAuthorizationService>(AUTHORIZATION_SERVICE);
 
     if (policies) {
       requirements.push(new PolicyDefaultAuthorizationRequirement(policies, authService))

@@ -36,7 +36,7 @@ export class UserStore<
   TUser extends IdentityUser<TKey>,
   TRole extends IdentityRole<TKey>,
   TKey  extends AllowedPrimaryKeysSafe,
-  TContext extends DbContext,
+  TContext   extends DbContext,
   TUserClaim extends IdentityUserClaim<TKey> = IdentityUserClaim<TKey>,
   TUserRole  extends IdentityUserRole<TKey>  = IdentityUserRole<TKey>,
   TUserLogin extends IdentityUserLogin<TKey> = IdentityUserLogin<TKey>,

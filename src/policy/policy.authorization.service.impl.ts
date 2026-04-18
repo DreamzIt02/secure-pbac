@@ -1,3 +1,4 @@
+import { TOKENS } from "../App.tokens.js";
 import { AuthorizeClaimEnum, AuthorizeClaimTypeEnum, ClaimsPrincipal, SiteClaim } from "../claims/index.js";
 import { AllowedPrimaryKeysSafe } from "../contexts/index.js";
 import { UserClaimsPrincipalFactory } from "../core/extensions/index.js";
@@ -5,6 +6,7 @@ import { RoleManager } from "../core/identity/index.js";
 import { AuthorizationResult, IAuthorizationService } from "../core/index.js";
 import { IdentityOptions } from "../core/options/index.js";
 import { IdentityRole, IdentityUser } from "../core/types/index.js";
+import { Inject } from "../decorators/index.js";
 import { GroupPolicy, PolicyEnum } from "../policies/index.js";
 import { AuthorizeRoleEnum, SiteRole } from "../roles/index.js";
 import { IManagerInfo, IOptions } from "../types/index.js";
@@ -16,10 +18,10 @@ export class DefaultPolicyAuthorizationService<
     TUser extends IdentityUser<TKey> = IdentityUser<TKey>, 
     TRole extends IdentityRole<TKey> = IdentityRole<TKey>> implements IPolicyAuthorizationService<TKey, TUser> {
     constructor(
-        private readonly authService    : IAuthorizationService,
-        private readonly userManager    : UserManager1<TKey, TUser>,
-        private readonly roleManager    : RoleManager<TKey, TRole>,
-        private readonly options        : IOptions<IdentityOptions>,
+        @Inject(TOKENS.AUTHORIZATION_SERVICE) private readonly authService: IAuthorizationService,
+        @Inject(TOKENS.USER_MANAGER1) private readonly userManager        : UserManager1<TKey, TUser>,
+        @Inject(TOKENS.ROLE_MANAGER)  private readonly roleManager        : RoleManager<TKey, TRole>,
+        private readonly options                                          : IOptions<IdentityOptions>,
     ) {
     }
     authorizeAsync(User: ClaimsPrincipal, policies: PolicyEnum[], checkDefault: boolean): Promise<AuthorizationResult>;

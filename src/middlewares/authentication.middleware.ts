@@ -1,21 +1,22 @@
 // ### 1. Minimal Node.js Authentication Middleware
 // Here’s a simple example using a bearer token:
 
-import { IncomingMessage, ServerResponse } from "http";
-import { ClaimsPrincipal, Claim } from "../claims/index.js";
 import { NextFn } from "./types.js";
-import { UserClaimsPrincipalFactory } from "../core/extensions/user.claims.principal.factory.js";
 import { IdentityUser } from "../core/types/index.js";
+import { HttpContext } from "../http/index.js";
+import { ArgumentNullThrowHelper } from "../types/exception.js";
 
 export async function useAuthentication(
-  req: IncomingMessage,
-  res: ServerResponse,
-  next: NextFn
+  ctx: HttpContext,
+  next: NextFn,
 ) {
-  const authHeader = req.headers["authorization"];
+  ArgumentNullThrowHelper.throwIfNullOrEmpty(ctx);
+  ArgumentNullThrowHelper.throwIfNullOrEmpty(next);
+
+  const authHeader = ctx.request.headers["authorization"];
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     // No token → anonymous user
-    (req as any).user = null;
+    ctx.user = null as any;
     return next();
   }
 
@@ -29,7 +30,6 @@ export async function useAuthentication(
     const user = new IdentityUser();
     user.id = payload.sub ?? null;
     
-    console.log("Authentication ", user);
     if (user.id) {
       // const factory = new UserClaimsPrincipalFactory();
       // factory.createAsync(user).then((User: ClaimsPrincipal) => {
@@ -39,8 +39,8 @@ export async function useAuthentication(
 
     return next();
   } catch (err) {
-    res.statusCode = 401;
-    res.end("Invalid token");
+    ctx.response.statusCode = 401;
+    ctx.response.end("Invalid token");
   }
 }
 

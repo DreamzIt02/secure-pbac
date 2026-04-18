@@ -1,4 +1,6 @@
+import { TOKENS } from "../App.tokens.js";
 import { ClaimsPrincipal } from "../claims/index.js";
+import { Inject } from "../decorators/index.js";
 import { ArgumentNullThrowHelper, InvalidOperationException } from "../types/exception.js";
 import { IOptions } from "../types/index.js";
 import { IAuthorizationEvaluator } from "./authorization.evaluator.js";
@@ -32,11 +34,11 @@ export class DefaultAuthorizationService implements IAuthorizationService {
    * @param options The AuthorizationOptions used.
    */
   constructor(
-    policyProvider: IAuthorizationPolicyProvider,
-    handlers      : IAuthorizationHandlerProvider,
-    contextFactory: IAuthorizationHandlerContextFactory,
-    evaluator     : IAuthorizationEvaluator,
-    options       : IOptions<AuthorizationOptions>
+    @Inject(TOKENS.AUTHORIZATION_POLICY_PROVIDER) policyProvider: IAuthorizationPolicyProvider,
+    @Inject(TOKENS.AUTHORIZATION_HANDLER_PROVIDER) handlers     : IAuthorizationHandlerProvider,
+    @Inject(TOKENS.AUTHORIZATION_HANDLER_CONTEXT_FACTORY) contextFactory: IAuthorizationHandlerContextFactory,
+    @Inject(TOKENS.AUTHORIZATION_EVALUATOR) evaluator           : IAuthorizationEvaluator,
+    options                                              : IOptions<AuthorizationOptions>,
   ) {
     if (!options || !policyProvider || !handlers || !contextFactory || !evaluator) {
       throw new Error('ArgumentNullException');
@@ -139,14 +141,14 @@ export class DefaultAuthorizationServiceImpl extends DefaultAuthorizationService
   private readonly metrics: AuthorizationMetrics;
 
   constructor(
-    policyProvider: IAuthorizationPolicyProvider,
-    handlers: IAuthorizationHandlerProvider,
-    contextFactory: IAuthorizationHandlerContextFactory,
-    evaluator: IAuthorizationEvaluator,
-    options: IOptions<AuthorizationOptions>,
-    metrics: AuthorizationMetrics
+    @Inject(TOKENS.AUTHORIZATION_POLICY_PROVIDER) policyProvider: IAuthorizationPolicyProvider,
+    @Inject(TOKENS.AUTHORIZATION_HANDLER_PROVIDER) handlers     : IAuthorizationHandlerProvider,
+    @Inject(TOKENS.AUTHORIZATION_HANDLER_CONTEXT_FACTORY) factory: IAuthorizationHandlerContextFactory,
+    @Inject(TOKENS.AUTHORIZATION_EVALUATOR) evaluator           : IAuthorizationEvaluator,
+    options                                              : IOptions<AuthorizationOptions>,
+    @Inject(TOKENS.AUTHORIZATION_METRICS) metrics                       : AuthorizationMetrics
   ) {
-    super(policyProvider, handlers, contextFactory, evaluator, options);
+    super(policyProvider, handlers, factory, evaluator, options);
     this.metrics = metrics;
   }
   public override async authorizeAsync(user: ClaimsPrincipal, resource: object | null, requirements: Iterable<IAuthorizationRequirement>): Promise<AuthorizationResult>;

@@ -5,8 +5,6 @@ import { IManagerInfo } from '../types/index.js';
 import { IdentityUser } from '../core/types/index.js';
 import { AllowedPrimaryKeysSafe } from '../contexts/index.js';
 
-export const POLICY_AUTHORIZATION_SERVICE = Symbol("PolicyAuthorizationService");
-
 // Interface extracted from C# IPolicyAuthorizationService
 export interface IPolicyAuthorizationService<TKey  extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey> = IdentityUser<TKey>> {
   /**

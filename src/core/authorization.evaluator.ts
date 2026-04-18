@@ -13,6 +13,7 @@ export interface IAuthorizationEvaluator {
  * and produces an AuthorizationResult.
  */
 export class DefaultAuthorizationEvaluator implements IAuthorizationEvaluator {
+  
   public evaluate(context: AuthorizationHandlerContext): AuthorizationResult {
     if (context.hasSucceeded) {
       return AuthorizationResult.success();

@@ -1,4 +1,6 @@
-export { DefaultMeterFactory, AuthorizationMetrics, Meter, Counter, TagList } from "./authorization.metrics.js"
+export type { IAuthorizationMetrics, IMeterFactory } from "./authorization.metrics.js"
+ export { DefaultMeterFactory, AuthorizationMetrics, Meter, Counter, TagList } from "./authorization.metrics.js"
+
 export { DefaultAuthorizationEvaluator } from "./authorization.evaluator.js"
 export type { IAuthorizationEvaluator } from "./authorization.evaluator.js"
 
@@ -27,7 +29,6 @@ export type { IAuthorizationPolicyProvider } from "./authorization.policy.provid
 export { AuthorizationResult } from "./authorization.result.js"
 export { DefaultAuthorizationService, DefaultAuthorizationServiceImpl } from "./authorization.service.impl.js"
 export type { IAuthorizationService } from "./authorization.service.js"
-export { AUTHORIZATION_SERVICE } from "./authorization.service.js"
 
 export { ClaimsAuthorizationRequirement } from "./claims.authorization.requirement.js"
 export { NameAuthorizationRequirement } from "./name.authorization.requirement.js"

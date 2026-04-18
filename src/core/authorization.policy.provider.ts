@@ -49,7 +49,9 @@ export class DefaultAuthorizationPolicyProvider implements IAuthorizationPolicyP
    * Creates a new instance of DefaultAuthorizationPolicyProvider.
    * @param options The options used to configure this instance.
    */
-  constructor(options: IOptions<AuthorizationOptions>) {
+  constructor(
+    options: IOptions<AuthorizationOptions>,
+  ) {
     ArgumentNullThrowHelper.throwIfNull(options);
     
     this.options = options.value;

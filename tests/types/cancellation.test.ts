@@ -25,7 +25,7 @@ describe("CancellationToken", () => {
   it("static none never cancels", () => {
     const token = CancellationToken.none;
     expect(() => token.throwIfCancellationRequested()).not.toThrow();
-    token.cancel(); // even if you call cancel, it's still the shared none instance
+    token.cancel(); // even if we call cancel, it's still the shared none instance
     expect(() => token.throwIfCancellationRequested()).toThrow(); // shows that none is just a normal instance
   });
 

@@ -97,7 +97,7 @@ export class SystemException extends Error {
         super(`${paramName ? paramName + ": " : ""}${message ?? "SystemException"}`);
         this.name = paramName ?? "SystemException";
         if (innerException) {
-            // You can store inner exception details if needed
+            // We can store inner exception details if needed
             (this as any).innerException = innerException;
         }
     }

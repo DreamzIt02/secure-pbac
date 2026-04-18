@@ -1,3 +1,4 @@
+
 // Minimal user type required by our PBAC library
 export interface AuthUser {
   id: string;
@@ -26,3 +27,8 @@ export interface HttpResponse {
 /// Placeholder types for symmetry.
 /// </summary>
 export interface IHttpContextAccessor<TContext = any> { httpContext?: TContext; }
+
+export interface IHttpRequestHandlerContext {
+  __handler       : (...args: any[]) => void;
+  __params        : Record<string, string>;
+}

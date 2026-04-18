@@ -4,8 +4,6 @@ import { AuthorizationResult } from "./authorization.result.js";
 import { IAuthorizationRequirement } from "./types/index.js";
 import { ClaimsPrincipal } from "../claims/index.js";
 
-export const AUTHORIZATION_SERVICE = Symbol("AuthorizationService");
-
 /**
  * Checks policy based permissions for a user
  * </summary>

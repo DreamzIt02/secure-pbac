@@ -15,9 +15,9 @@
     }
   },
   "scripts": {
-    "dev": "tsx watch src/App.ts",
+    "dev": "tsx watch src/main.ts",
     "build": "tsc",
-    "start": "node dist/App.js",
+    "start": "node dist/main.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

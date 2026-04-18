@@ -3,12 +3,11 @@
 import { ClaimsPrincipal } from "../claims/index.js";
 import { CancellationToken } from "../types/cancellation.js";
 import { HttpRequest, HttpResponse } from "./types.js";
+import { IServiceProvider, ISession } from "../features/index.js";
 
 export interface IFeatureCollection {
   entries(): Iterable<[object, object]> | ArrayLike<[object, object]>;
 }
-export interface ISession {}
-export interface IServiceProvider {}
 export interface ConnectionInfo {}
 export interface WebSocketManager {}
 
