@@ -1,9 +1,11 @@
 import { AllowedPrimaryKeysSafe } from "../contexts/index.js";
-import { AuthorizationHandler, AuthorizationHandlerContext } from "../core/index.js";
+import { AuthorizationHandler, AuthorizationHandlerContext, AuthorizationService, IAuthorizationService } from "../core/index.js";
 import { IAuthorizationRequirement } from "../core/types/index.js";
+import { HttpContextAccessor } from "../http/index.js";
 import { ArgumentNullThrowHelper } from "../types/exception.js";
+import { PolicyAuthorizationService } from "./policy.authorization.service.impl.js";
 import { IPolicyAuthorizationService } from "./policy.authorization.service.js";
-import { ClaimExpression, IPolicyExpressionEvaluatorFactory, PolicyExpressionEvaluatorFactory} from "./policy.expression.evaluator.factory.js";
+import { ClaimExpression, PolicyExpressionEvaluatorFactory} from "./policy.expression.evaluator.factory.js";
 
 /**
  * Implements an IAuthorizationHandler and IAuthorizationRequirement
@@ -18,21 +20,17 @@ export class PolicyHierarchyAuthorizationRequirement<TKey  extends AllowedPrimar
 {
   private readonly policies           : Iterable<string>;
   private readonly expressionFactory  : () => ClaimExpression;
-  private readonly expressionEvaluator: IPolicyExpressionEvaluatorFactory;
   
   // Implementation
   constructor(
     policies         : Iterable<string>, 
     expressionFactory: () => ClaimExpression,
-    authService      : IPolicyAuthorizationService<TKey>,
   ) {
     ArgumentNullThrowHelper.throwIfNull(policies);
     ArgumentNullThrowHelper.throwIfNull(expressionFactory);
-    ArgumentNullThrowHelper.throwIfNull(authService);
     super();
     this.policies            = policies;
     this.expressionFactory   = expressionFactory;
-    this.expressionEvaluator = new PolicyExpressionEvaluatorFactory(undefined, authService);
   }
 
   // Overload signatures to satisfy base class
@@ -52,9 +50,15 @@ export class PolicyHierarchyAuthorizationRequirement<TKey  extends AllowedPrimar
     requirement: PolicyHierarchyAuthorizationRequirement<TKey>,
     resource?  : object
   ): Promise<void> {
-    if (context.user) {
-      const expr       = this.expressionFactory();
-      const authorized = await this.expressionEvaluator.evaluateHierarchy(expr, context.user, resource, requirement.policies);
+    const httpContext   = HttpContextAccessor.current;
+    if (context.user && httpContext) {
+      const scope       = httpContext.requestServices.createScope();
+      const authService = scope.getRequiredService<IAuthorizationService>(AuthorizationService);
+      const policyService = scope.getRequiredService<IPolicyAuthorizationService<any, any>>(PolicyAuthorizationService);
+      
+      const expr        = this.expressionFactory();
+      const evaluator   = new PolicyExpressionEvaluatorFactory(authService, policyService);
+      const authorized  = await evaluator.evaluateHierarchy(expr, context.user, resource, requirement.policies);
 
       if (authorized.succeeded) {
         context.succeed(requirement);

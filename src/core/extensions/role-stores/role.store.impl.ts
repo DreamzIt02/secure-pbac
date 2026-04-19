@@ -1,9 +1,11 @@
 import { Claim } from "../../../claims/index.js";
 import { AllowedPrimaryKeysSafe, DbContext, DbSet, TypeDescriptor } from "../../../contexts/index.js";
+import { Inject } from "../../../decorators/index.js";
 import { IQueryable } from "../../../linq/index.js";
 import { CancellationToken } from "../../../types/cancellation.js";
 import { ArgumentNullException, ArgumentNullThrowHelper } from "../../../types/exception.js";
 import { randomUUID } from "../../../utils.js";
+import { IdentityDbContext } from "../../contexts/index.js";
 import { IdentityErrorDescriber, IdentityResult } from "../../identity/index.js";
 import { IdentityRole, IdentityRoleClaim, IdentityUserRole } from "../../types/index.js";
 import { IQueryableRoleStore } from "../stores/index.js";
@@ -34,7 +36,7 @@ export class RoleStore<
   /// <param name="context">The <see cref="DbContext"/>.</param>
   /// <param name="describer">The <see cref="IdentityErrorDescriber"/>.</param>
   constructor(
-    private readonly context: TContext,
+    @Inject(IdentityDbContext) private readonly context: TContext,
     
     describer?: IdentityErrorDescriber) {
     ArgumentNullThrowHelper.throwIfNull(context);

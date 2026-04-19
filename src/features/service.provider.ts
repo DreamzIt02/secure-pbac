@@ -14,7 +14,7 @@
 // * `@Inject()` metadata (`getInjectTokens`)
 // * `descriptor.deps`
 // No fallback. No magic.
-import { getInjectTokens, Token } from "../decorators/index.js";
+import { getInjectableToken, getInjectTokens, Token } from "../decorators/index.js";
 
 // # 🧩 Step o: Define Global Service Token Factory
 // App.tokens.ts
@@ -27,7 +27,7 @@ export enum ServiceLifetime {
 }
 
 // # 🧾 Step 2: Service Descriptor
-type Factory<T> = (provider: IServiceProvider) => T;
+export type Factory<T> = (provider: IServiceProvider) => T;
 
 export interface ParamDescriptor<T = any> {
   [key: number]: T
@@ -50,94 +50,12 @@ export interface IServiceProvider {
   createScope(): IServiceProvider;
 }
 
-// # 🏗️ Step 7: Service Collection (Builder like .NET)
-export class ServiceCollection {
-  private readonly descriptors: ServiceDescriptor[] = [];
-
-  addSingleton<T>(token: Token<T>, impl: new () => T, deps?: ParamDescriptor) {
-    // this.checkMultiAllowed(token, multi);
-    this.descriptors.push({
-      token,
-      lifetime: ServiceLifetime.Singleton,
-      implementation: impl,
-      deps: deps,
-    });
-  }
-
-  addScoped<T>(token: Token<T>, impl: new () => T, deps?: ParamDescriptor) {
-    // this.checkMultiAllowed(token, multi);
-    this.descriptors.push({
-      token,
-      lifetime: ServiceLifetime.Scoped,
-      implementation: impl,
-      deps: deps,
-    });
-  }
-
-  addTransient<T>(token: Token<T>, impl: new () => T, deps?: ParamDescriptor) {
-    // this.checkMultiAllowed(token, multi);
-    this.descriptors.push({
-      token,
-      lifetime: ServiceLifetime.Transient,
-      implementation: impl,
-      deps: deps,
-    });
-  }
-
-  addFactory<T>(token: Token<T>, factory: Factory<T>, lifetime: ServiceLifetime) {
-    // this.checkMultiAllowed(token, multi);
-    this.descriptors.push({ token, factory, lifetime });
-  }
-
-  /**
-   * Merge and Unified service collection
-   * @param other 
-   * @returns 
-   */
-  // merge(other: ServiceCollection): ServiceCollection {
-  //   this.descriptors.push(...other.descriptors);
-  //   other = this;
-  //   return this;
-  // }
-
-  build(): ServiceProvider {
-    return new ServiceProvider(this.descriptors);
-  }
-  /**
-   * 1. **Conditional multi registration**:
-   * When we register a service for a token, we must decide whether that token supports multiple registrations. 
-   * If the first registration says `multi: true`, then subsequent registrations for the same token are allowed. 
-   * If the first registration says `multi: false` (default), then subsequent registrations should overwrite the previous one (like .NET’s `GetService<T>()` behavior).
-   * 
-   * 2. **Resolution semantics**: 
-   * - `getService<T>(token)` → return the **last registered** instance (like `.NET GetService<T>()`).
-   * - `getServices<T>(token)` → return **all registered instances** (like `.NET GetServices<T>()`). 
-   * @param token 
-   * @param multi 
-   */
-  // private checkMultiAllowed<T>(token: Token<T>, multi?: boolean): ServiceDescriptor | undefined {
-  //   const existing = this.descriptors.filter(d => d.token === token);
-  //   if (existing.length > 0) {
-  //     const first = existing[0];
-  //     if (!first.multi && multi) {
-  //       throw new Error(`Token ${token.toString()} was first registered as single, cannot add multi.`);
-  //     }
-  //     if (first.multi && !multi) {
-  //       throw new Error(`Token ${token.toString()} was first registered as multi, must continue as multi.`);
-  //     }
-  //     //
-  //     return first;
-  //   }
-  //   return undefined;
-  // }
-}
-
 // # 🔥 Step 8: Core Container (Lazy + Scoped)
 export class ServiceProvider implements IServiceProvider {
   private readonly descriptorMap  = new Map<Token, ServiceDescriptor[]>();
   private readonly singletonCache = new Map<Token, any>();
   private readonly scopedCache    = new Map<Token, any>();
-  private readonly resolving      = new Set<Token>();
+  // private readonly resolving      = new Set<Token>();
 
   constructor(
     private readonly descriptors: ServiceDescriptor[],
@@ -173,6 +91,9 @@ export class ServiceProvider implements IServiceProvider {
   }
 
   private getAllDescriptors<T>(token: Token<T>): ServiceDescriptor<T>[] {
+    //
+    token = getInjectableToken(token);
+
     const local = this.descriptorMap.get(token) ?? [];
     const parent = this.parent ? this.parent.getAllDescriptors(token) : [];
     return [...parent, ...local];
@@ -182,6 +103,9 @@ export class ServiceProvider implements IServiceProvider {
   // }
 
   getServices<T>(token: Token<T>, lifetime?: ServiceLifetime, stack: Token[] = []): Iterable<T> {
+    //
+    token = getInjectableToken(token);
+
     const matches = this.getAllDescriptors(token).filter(s => !lifetime || lifetime === s.lifetime);
 
     if (matches.length === 0) return [];
@@ -194,6 +118,9 @@ export class ServiceProvider implements IServiceProvider {
    * @returns 
    */
   getService<T>(token: Token<T>, lifetime?: ServiceLifetime, stack: Token[] = []): T | null {
+    //
+    token = getInjectableToken(token);
+
     const matches = this.getAllDescriptors(token).filter(s => !lifetime || lifetime === s.lifetime);
 
     if (matches.length === 0) return null;
@@ -207,6 +134,9 @@ export class ServiceProvider implements IServiceProvider {
    * @returns 
    */
   getRequiredService<T>(token: Token<T>, lifetime?: ServiceLifetime, stack: Token[] = []): T {
+    //
+    token = getInjectableToken(token);
+
     const matches = this.getAllDescriptors(token).filter(s => !lifetime || lifetime === s.lifetime);
     
     if (matches.length === 0)

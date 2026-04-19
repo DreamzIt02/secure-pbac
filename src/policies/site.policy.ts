@@ -175,6 +175,14 @@ export class GroupPolicy {
             return [];
         }
     }
+    /**
+     * Gets the group policy for the given GroupPolicyEnum.
+     * @param id The group policy id.
+     */
+    public static getGroupPolicies(id: GroupPolicyEnum): string[] {
+        const policies = this.getGroupPolicy(id);
+        return policies.map(p => this.authorizePolicyName(p));
+    }
 
     /**
      * Simply adds two arrays and returns as new array.

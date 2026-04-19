@@ -8,43 +8,76 @@ export type Token<T = any> = symbol | (new (...args: any[]) => T);
 // });
 
 // # 🧬 4. @Inject Decorator (Parameter Injection Override)
-const INJECT_METADATA_KEY = Symbol("inject_tokens");
+const INJECT_TOKENS       = Symbol("INJECT_TOKENS");
+const INJECT_METADATA_KEY = Symbol("INJECT_METADATA");
 
-// export function Inject(token: Token): ParameterDecorator {
-//   return (target, propertyKey, parameterIndex) => {
-//     const existing =
-//       Reflect.getMetadata(INJECT_METADATA_KEY, target) || {};
+export function Injectable(): ClassDecorator {
+  return (target: Object) => {
+    // target here is the constructor function
+    const ctor = target;
+    getInjectableToken(ctor);
+  };
+}
+function getTokenName(ctor: Object | Function): string {
+    const descriptors = Object.getOwnPropertyDescriptors(
+      typeof ctor === "function" ? ctor : Object.getPrototypeOf(ctor));
+    const name: string = descriptors.name.value;
+      if (!name || !name.length)
+        throw new Error(`A valid parameter name is required: ${name}`);
 
-//     existing[parameterIndex] = token;
+    return name;
+  }
 
-//     Reflect.defineMetadata(INJECT_METADATA_KEY, existing, target);
-//   };
-// }
+export function getInjectableToken(ctor: Object | Function): Token {
+  if (typeof ctor !== "object" || typeof ctor !== "function")
+    return ctor as any;
 
-export function Inject(token: Token): ParameterDecorator {
+  const name = getTokenName(ctor);
+  
+  const existing = Reflect.get(ctor, INJECT_TOKENS) ?? {};
+  if (existing[name])
+    return existing[name];
+
+  const token = Symbol(name);
+  existing[name] = token;
+
+  Reflect.defineProperty(ctor, INJECT_TOKENS, {
+    value: existing,
+    writable: false,
+    enumerable: false,
+    configurable: true,
+  });
+
+  return Reflect.get(ctor, INJECT_TOKENS);
+}
+
+export function Inject<T>(token: Token<T>): ParameterDecorator {
   return (target, propertyKey, parameterIndex) => {
     // if (!name || !name.length)
     //   throw new Error(`A valid parameter name is required: ${name}`);
 
     // target here is the constructor function
-    const ctor = target as any;
+    const ctor = target;
+    const existing = Reflect.get(ctor, INJECT_METADATA_KEY) ?? {};
 
-    // Initialize metadata store if not present
-    if (!ctor[INJECT_METADATA_KEY]) {
-      ctor[INJECT_METADATA_KEY] = {};
-    }
-    
     // if (ctor[INJECT_METADATA_KEY][name])
     //   throw new Error(`A valid parameter name is already injected: ${name}`);
 
     // Store the token for this parameter index
-    ctor[INJECT_METADATA_KEY][parameterIndex] = token;
+    existing[parameterIndex] = token;
+
+    Reflect.defineProperty(ctor, INJECT_METADATA_KEY, {
+      value: existing,
+      writable: false,
+      enumerable: false,
+      configurable: true,
+    });
   };
 }
 
 // Helper to read tokens later
 export function getInjectTokens(ctor: Function): Record<number, Token> {
-  return (ctor as any)[INJECT_METADATA_KEY] || {};
+  return Reflect.get(ctor, INJECT_METADATA_KEY) || {};
 }
 // # Usage Examples
 // class Logger {}

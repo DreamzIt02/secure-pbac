@@ -2,10 +2,12 @@
 
 import { Claim } from "../../../claims/claim.js";
 import { AllowedPrimaryKeysSafe, DbContext, DbSet } from "../../../contexts/index.js";
+import { Inject } from "../../../decorators/index.js";
 import { IQueryable } from "../../../linq/index.js";
 import { CancellationToken } from "../../../types/cancellation.js";
 import { ArgumentException, ArgumentNullException, ArgumentNullThrowHelper } from "../../../types/exception.js";
 import { randomUUID } from "../../../utils.js";
+import { IdentityDbContext } from "../../contexts/index.js";
 import { IdentityErrorDescriber, IdentityResult } from "../../identity/index.js";
 import {
   IdentityRole,
@@ -71,7 +73,7 @@ export class UserStore<
     /// Constructs a new instance of UserStore.
     /// </summary>
     constructor(
-        protected readonly context: TContext, 
+        @Inject(IdentityDbContext) protected readonly context: TContext, 
         private readonly ctorUser: new () => TUser,
         private readonly ctorRole: new () => TRole,
         private readonly ctorUserClaim: new () => IdentityUserClaim<TKey> = IdentityUserClaim<TKey>,

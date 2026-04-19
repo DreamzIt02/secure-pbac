@@ -23,6 +23,13 @@ export interface IAuthorizationHandlerContextFactory {
   ): AuthorizationHandlerContext;
 }
 
+export class AuthorizationHandlerContextFactory
+  implements IAuthorizationHandlerContextFactory
+{
+  createContext(requirements: Iterable<IAuthorizationRequirement>, user: ClaimsPrincipal, resource: object | null): AuthorizationHandlerContext {
+    throw new Error("Method not implemented.");
+  }
+}
 /**
  * Default factory that creates AuthorizationHandlerContext instances.
  */

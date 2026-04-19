@@ -1,27 +1,105 @@
-import { TOKENS } from "../App.tokens.js";
 import { AuthorizeClaimEnum, AuthorizeClaimTypeEnum, ClaimsPrincipal, SiteClaim } from "../claims/index.js";
 import { AllowedPrimaryKeysSafe } from "../contexts/index.js";
 import { UserClaimsPrincipalFactory } from "../core/extensions/index.js";
 import { RoleManager } from "../core/identity/index.js";
-import { AuthorizationResult, IAuthorizationService } from "../core/index.js";
+import { AuthorizationResult, AuthorizationService, IAuthorizationService } from "../core/index.js";
 import { IdentityOptions } from "../core/options/index.js";
 import { IdentityRole, IdentityUser } from "../core/types/index.js";
-import { Inject } from "../decorators/index.js";
+import { Inject, Injectable } from "../decorators/index.js";
 import { GroupPolicy, PolicyEnum } from "../policies/index.js";
 import { AuthorizeRoleEnum, SiteRole } from "../roles/index.js";
 import { IManagerInfo, IOptions } from "../types/index.js";
 import { UserManager1 } from "./identity/index.js";
 import { IPolicyAuthorizationService } from "./policy.authorization.service.js";
 
+@Injectable()
+export class PolicyAuthorizationService implements IPolicyAuthorizationService<any, any> {
+    authorizeAsync(user: ClaimsPrincipal, policies: PolicyEnum[], checkDefault: boolean): Promise<AuthorizationResult>;
+    authorizeAsync(user: ClaimsPrincipal, policies: PolicyEnum[]): Promise<AuthorizationResult>;
+    authorizeAsync(user: ClaimsPrincipal, policy: PolicyEnum): Promise<AuthorizationResult>;
+    authorizeAsync(user: unknown, policies: unknown, checkDefault?: unknown): Promise<AuthorizationResult> {
+        throw new Error("Method not implemented.");
+    }
+    isDefaultAdmin(user: ClaimsPrincipal): Promise<AuthorizationResult>;
+    isDefaultAdmin(user: any): Promise<AuthorizationResult>;
+    isDefaultAdmin(user: unknown): Promise<AuthorizationResult> {
+        throw new Error("Method not implemented.");
+    }
+    isActingAdmin(user: ClaimsPrincipal): Promise<AuthorizationResult>;
+    isActingAdmin(user: any): Promise<AuthorizationResult>;
+    isActingAdmin(user: unknown): Promise<AuthorizationResult> {
+        throw new Error("Method not implemented.");
+    }
+    isGeneralAdmin(user: ClaimsPrincipal): Promise<AuthorizationResult>;
+    isGeneralAdmin(user: any): Promise<AuthorizationResult>;
+    isGeneralAdmin(user: unknown): Promise<AuthorizationResult> {
+        throw new Error("Method not implemented.");
+    }
+    isDepartmentAdmin(user: ClaimsPrincipal, claim?: AuthorizeClaimEnum): Promise<AuthorizationResult>;
+    isDepartmentAdmin(user: any, claim?: AuthorizeClaimEnum): Promise<AuthorizationResult>;
+    isDepartmentAdmin(user: unknown, claim?: unknown): Promise<AuthorizationResult> {
+        throw new Error("Method not implemented.");
+    }
+    isDepartmentManager(user: ClaimsPrincipal, claim?: AuthorizeClaimEnum): Promise<AuthorizationResult>;
+    isDepartmentManager(user: any, claim?: AuthorizeClaimEnum): Promise<AuthorizationResult>;
+    isDepartmentManager(user: unknown, claim?: unknown): Promise<AuthorizationResult> {
+        throw new Error("Method not implemented.");
+    }
+    isInAdminGroup(user: ClaimsPrincipal): Promise<boolean>;
+    isInAdminGroup(user: any): Promise<boolean>;
+    isInAdminGroup(user: unknown): Promise<boolean> {
+        throw new Error("Method not implemented.");
+    }
+    forbiddenAdminGroup(user: ClaimsPrincipal): Promise<boolean>;
+    forbiddenAdminGroup(user: any): Promise<boolean>;
+    forbiddenAdminGroup(user: unknown): Promise<boolean> {
+        throw new Error("Method not implemented.");
+    }
+    authorizeAdminGroup(user: ClaimsPrincipal): Promise<boolean>;
+    authorizeAdminGroup(user: any): Promise<boolean>;
+    authorizeAdminGroup(user: unknown): Promise<boolean> {
+        throw new Error("Method not implemented.");
+    }
+    authorizeManagerGroup(user: ClaimsPrincipal): Promise<boolean>;
+    authorizeManagerGroup(user: any): Promise<boolean>;
+    authorizeManagerGroup(user: unknown): Promise<boolean> {
+        throw new Error("Method not implemented.");
+    }
+    getDefaultAdmin(): Promise<any> {
+        throw new Error("Method not implemented.");
+    }
+    getActingAdmin(): Promise<any> {
+        throw new Error("Method not implemented.");
+    }
+    getGeneralAdmin(): Promise<any> {
+        throw new Error("Method not implemented.");
+    }
+    getDepartmentAdmin(department: AuthorizeClaimEnum): Promise<any> {
+        throw new Error("Method not implemented.");
+    }
+    getDepartmentAdmins(departments: AuthorizeClaimEnum[]): Promise<any[]> {
+        throw new Error("Method not implemented.");
+    }
+    getDepartmentManagers(department: AuthorizeClaimEnum): Promise<any[]> {
+        throw new Error("Method not implemented.");
+    }
+    getValidManager(item: IManagerInfo, department?: AuthorizeClaimEnum): Promise<any> {
+        throw new Error("Method not implemented.");
+    }
+    hasValidManager(item: IManagerInfo, department?: AuthorizeClaimEnum): Promise<boolean> {
+        throw new Error("Method not implemented.");
+    }
+
+}
 export class DefaultPolicyAuthorizationService<
     TKey  extends AllowedPrimaryKeysSafe, 
     TUser extends IdentityUser<TKey> = IdentityUser<TKey>, 
     TRole extends IdentityRole<TKey> = IdentityRole<TKey>> implements IPolicyAuthorizationService<TKey, TUser> {
     constructor(
-        @Inject(TOKENS.AUTHORIZATION_SERVICE) private readonly authService: IAuthorizationService,
-        @Inject(TOKENS.USER_MANAGER1) private readonly userManager        : UserManager1<TKey, TUser>,
-        @Inject(TOKENS.ROLE_MANAGER)  private readonly roleManager        : RoleManager<TKey, TRole>,
-        private readonly options                                          : IOptions<IdentityOptions>,
+        @Inject(AuthorizationService) private readonly authService: IAuthorizationService,
+        @Inject(UserManager1) private readonly userManager        : UserManager1<TKey, TUser>,
+        @Inject(RoleManager)  private readonly roleManager        : RoleManager<TKey, TRole>,
+        private readonly options                                  : IOptions<IdentityOptions>,
     ) {
     }
     authorizeAsync(User: ClaimsPrincipal, policies: PolicyEnum[], checkDefault: boolean): Promise<AuthorizationResult>;

@@ -36,7 +36,7 @@ export class RouteCollection {
       // Combine base path + method template
       const fullTemplate = [classMeta.basePath, meta.template].join('/');
 
-      this.add(meta.method as HttpMethod, fullTemplate, fn.bind(controller), 
+      this.add(meta.method as HttpMethod, fullTemplate, (fn as any),
             meta.propertyKey, {[meta.propertyKey]: classMeta.params?.[meta.propertyKey]});
     }
 

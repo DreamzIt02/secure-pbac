@@ -3,7 +3,7 @@ import { Claim, ClaimsIdentity, ClaimsPrincipal, ClaimTypes } from "../../claims
 import { AuthenticationScheme, IAuthenticationSchemeProvider, AuthenticationProperties, AuthenticationSchemeProvider } from "../../http/authentication/index.js";
 import { HttpContext, HttpContextAccessor } from "../../http/index.js";
 import { IHttpContextAccessor } from "../../http/types.js";
-import { DefaultUserConfirmation, IUserConfirmation, UserClaimsPrincipalFactory } from "../extensions/index.js";
+import { DefaultUserConfirmation, IUserClaimsPrincipalFactory, IUserConfirmation, UserClaimsPrincipalFactory } from "../extensions/index.js";
 import { IdentityOptions } from "../options/index.js";
 import { ArgumentNullThrowHelper, InvalidOperationException } from "../../types/exception.js";
 import { ExternalLoginInfo, IdentityRole, IdentityUser } from "../types/index.js";
@@ -14,6 +14,7 @@ import { SignInResult } from "./signin.result.js";
 import { UserManager } from "./user.manager.js";
 import { IOptions } from "../../types/index.js";
 import { AllowedPrimaryKeysSafe } from "../../contexts/index.js";
+import { Inject } from "../../decorators/index.js";
 
 /// <summary>
 /// Provides the APIs for user sign in.
@@ -33,9 +34,9 @@ export class SignInManager<TKey extends AllowedPrimaryKeysSafe, TUser extends Id
     /// Creates a new instance of SignInManager{TUser}.
     /// </summary>
     constructor(
-        public userManager: UserManager<TKey, TUser>,
-        public claimsFactory: UserClaimsPrincipalFactory<TKey, TUser, IdentityRole<TKey>>,
-        contextAccessor: HttpContextAccessor,
+        @Inject(UserManager) public userManager: UserManager<TKey, TUser>,
+        /*@Inject(UserClaimsPrincipalFactory)*/ public claimsFactory: IUserClaimsPrincipalFactory<TKey, TUser>,
+        contextAccessor: IHttpContextAccessor,
         optionsAccessor: IOptions<IdentityOptions>,
         schemes: AuthenticationSchemeProvider,
         confirmation: DefaultUserConfirmation<TKey, TUser>

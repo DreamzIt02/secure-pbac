@@ -1,24 +1,33 @@
 import { createServer, IncomingMessage, ServerResponse, Server } from "http";
 import { useAuthentication, useAuthorization } from "./middlewares/index.js";
 import { 
+    AuthorizationEvaluator,
+    AuthorizationHandlerContextFactory,
+    AuthorizationHandlerProvider,
     AuthorizationMetrics,
-    AuthorizationOptions, DefaultAuthorizationEvaluator, DefaultAuthorizationHandlerContextFactory,
+    AuthorizationOptions, AuthorizationPolicyProvider, AuthorizationService, DefaultAuthorizationEvaluator, DefaultAuthorizationHandlerContextFactory,
     DefaultAuthorizationHandlerProvider, DefaultAuthorizationPolicyProvider, DefaultAuthorizationService, DefaultAuthorizationServiceImpl, 
     DefaultMeterFactory, IAuthorizationEvaluator, IAuthorizationHandlerContextFactory, IAuthorizationHandlerProvider, IAuthorizationMetrics, IAuthorizationPolicyProvider, 
-    IAuthorizationService, IMeterFactory} from "./core/index.js";
-import { IdentityUser } from "./core/types/index.js";
-import { AuthorizationExtensions, DefaultPolicyAuthorizationService, IPolicyAuthorizationService } from "./policy/index.js";
-import { AllowedPrimaryKeysSafe } from "./contexts/index.js";
+    IAuthorizationService, IMeterFactory,
+    MeterFactory} from "./core/index.js";
+import { IdentityRole, IdentityUser } from "./core/types/index.js";
+import { AuthorizationExtensions, DefaultPolicyAuthorizationService, IPolicyAuthorizationService, PolicyAuthorizationService } from "./policy/index.js";
+import { AllowedPrimaryKeysSafe, DbContext, DbContextOptions } from "./contexts/index.js";
 import { AuthenticationOptions } from "./http/authentication/index.js";
 import { IdentityOptions } from "./core/options/index.js";
-import { TOKENS } from "./App.tokens.js";
-import { ILookupNormalizer, IPasswordHasher, LookupNormalizer, PasswordHasher } from "./core/extensions/index.js";
+import { ILookupNormalizer, IPasswordHasher, IUserClaimsPrincipalFactory, LookupNormalizer, PasswordHasher, UserClaimsPrincipalFactory } from "./core/extensions/index.js";
 import { IPasswordValidator, IRoleValidator, IUserValidator, PasswordValidator, RoleValidator, UserValidator } from "./core/validators/index.js";
-import { HttpContext, HttpContextAccessor, RequestHandler, RequestMeta, RequestParams } from "./http/index.js";
+import { HttpContext, HttpContextAccessor, RequestHandler, RequestMeta, RequestParams, ResponseHandler } from "./http/index.js";
 import { Middleware, NextFn } from "./middlewares/types.js";
 import { IServiceProvider, ServiceCollection } from "./features/index.js";
 import { invokeWithBindings, RouteCollection } from "./routing/index.js";
 import { IRouteProvider } from "./routing/types.js";
+import { IdentityDbContext } from "./core/contexts/index.js";
+import { UserStore } from "./core/extensions/user-stores/index.js";
+import { RoleStore } from "./core/extensions/role-stores/index.js";
+import { IdentityErrorDescriber, RoleManager, UserManager } from "./core/identity/index.js";
+import { UserManager1 } from "./policy/identity/index.js";
+import { IHttpContextAccessor } from "./http/types.js";
 
 // ### Using `Reflect`
 
@@ -48,15 +57,18 @@ export abstract class AppContext extends AuthorizationExtensions {
 
     private middlewares!   : Middleware[];
     private routing!       : boolean;
+    private register_service!: boolean;
+    private identity_context!: boolean;
     private authentication!: boolean;
     private authorization! : boolean;
 
     constructor(
-        protected readonly authenticationOptions: AuthenticationOptions,
-        protected readonly authorizationOptions: AuthorizationOptions,
-        protected readonly identityOptions: IdentityOptions,
-        protected readonly services: ServiceCollection   = new ServiceCollection(),
-        protected readonly routes  : RouteCollection     = new RouteCollection(),
+        private readonly authenticationOptions: AuthenticationOptions,
+        private readonly authorizationOptions: AuthorizationOptions,
+        private readonly identityOptions: IdentityOptions,
+        private readonly contextOptions: DbContextOptions = new DbContextOptions(),
+        private readonly services: ServiceCollection   = new ServiceCollection(),
+        private readonly routes  : RouteCollection     = new RouteCollection(),
     ) {
         super(authorizationOptions)
         this.middlewares = [];
@@ -69,20 +81,27 @@ export abstract class AppContext extends AuthorizationExtensions {
      * Allows configuring any of the option types (Authentication, Authorization, Identity, etc.)
      * Configure options by passing the constructor type as selector.
      */
-    public configureOptions<T extends AuthenticationOptions | AuthorizationOptions | IdentityOptions>(
+    public configureOptions<T extends AuthenticationOptions | AuthorizationOptions | IdentityOptions | DbContextOptions>(
         ctor: new (...args: any[]) => T,
         callback: (opts: T) => T
     ): void {
+        if (this.register_service)
+            throw new Error(`Pipeline must configure options before registerServices()`);
+
         if (ctor instanceof AuthenticationOptions) {
             (this.authenticationOptions as any) = callback(this.authenticationOptions as T);
         } else if (ctor instanceof AuthorizationOptions) {
             (this.authorizationOptions as any)  = callback(this.authorizationOptions as T);
         } else if (ctor instanceof IdentityOptions) {
             (this.identityOptions as any)       = callback(this.identityOptions as T);
+        } else if (ctor instanceof DbContextOptions) {
+            (this.contextOptions as any)        = callback(this.contextOptions as T);
         }
     }
 
     public registerServices = (callback: (services: ServiceCollection) => ServiceCollection) => {
+        //
+        this.register_service = true;
         // 
         this.registerServicesDefault((services: ServiceCollection) => {
             return services;
@@ -100,7 +119,7 @@ export abstract class AppContext extends AuthorizationExtensions {
         this.registerRoutesDefault((routes: RouteCollection) => {
             return routes;
         });
-        // Register any other Service of App
+        // Register any other Route of App
 
         // Merge routes registered in Caller
         callback(this.routes);
@@ -109,15 +128,17 @@ export abstract class AppContext extends AuthorizationExtensions {
     }
     
     private registerServicesDefault = (callback: (services: ServiceCollection) => ServiceCollection) => {
+        this.services.addSingleton(HttpContextAccessor, HttpContextAccessor as new ()    => IHttpContextAccessor, { });
+
         // Register default services of AppContext
-        this.services.addSingleton(TOKENS.PASSWORD_HASHER,      PasswordHasher as new ()    => IPasswordHasher<any>, { });
-        this.services.addSingleton(TOKENS.PASSWORD_VALIDATORS,  PasswordValidator as new () => IPasswordValidator<any, any>, { });
-        this.services.addSingleton(TOKENS.USER_VALIDATORS,      UserValidator as new ()     => IUserValidator<any, any>, { });
-        this.services.addSingleton(TOKENS.ROLE_VALIDATORS,      RoleValidator as new ()     => IRoleValidator<any, any>, { });
-        this.services.addSingleton(TOKENS.KEY_NORMALIZER,       LookupNormalizer as new ()  => ILookupNormalizer, { });
+        this.services.addSingleton(PasswordHasher,     PasswordHasher as new ()    => IPasswordHasher<any>, { });
+        this.services.addSingleton(PasswordValidator,  PasswordValidator as new () => IPasswordValidator<any, any>, { });
+        this.services.addSingleton(UserValidator,      UserValidator as new ()     => IUserValidator<any, any>, { });
+        this.services.addSingleton(RoleValidator,      RoleValidator as new ()     => IRoleValidator<any, any>, { });
+        this.services.addSingleton(LookupNormalizer,   LookupNormalizer as new ()  => ILookupNormalizer, { });
         //
-        this.services.addSingleton(TOKENS.METER_FACTORY,        DefaultMeterFactory as new () => IMeterFactory, { });
-        this.services.addSingleton(TOKENS.AUTHORIZATION_METRICS, AuthorizationMetrics as any as new () => IAuthorizationMetrics, { });
+        this.services.addSingleton(MeterFactory,         DefaultMeterFactory as new () => IMeterFactory, { });
+        this.services.addSingleton(AuthorizationMetrics, AuthorizationMetrics as any as new () => IAuthorizationMetrics, { });
         //
         callback(this.services);
         // Cast any, to omit readonly
@@ -138,18 +159,18 @@ export abstract class AppContext extends AuthorizationExtensions {
         // Cast any to enforce readonly
         const options = { value: this.authorizationOptions };
         //
-        this.services.addSingleton(TOKENS.AUTHORIZATION_POLICY_PROVIDER,
+        this.services.addSingleton(AuthorizationPolicyProvider,
             DefaultAuthorizationPolicyProvider as any as new () => IAuthorizationPolicyProvider, { 0: options });
-        this.services.addScoped(TOKENS.AUTHORIZATION_HANDLER_PROVIDER,
+        this.services.addScoped(AuthorizationHandlerProvider,
             DefaultAuthorizationHandlerProvider as any as new () => IAuthorizationHandlerProvider, { 0: [] });
-        this.services.addSingleton(TOKENS.AUTHORIZATION_HANDLER_CONTEXT_FACTORY,
+        this.services.addSingleton(AuthorizationHandlerContextFactory,
             DefaultAuthorizationHandlerContextFactory as new () => IAuthorizationHandlerContextFactory, { });
-        this.services.addSingleton(TOKENS.AUTHORIZATION_EVALUATOR,
+        this.services.addSingleton(AuthorizationEvaluator,
             DefaultAuthorizationEvaluator as new () => IAuthorizationEvaluator, { });
 
-        this.services.addScoped(TOKENS.AUTHORIZATION_SERVICE,
+        this.services.addScoped(AuthorizationService,
             DefaultAuthorizationService as any as new () => IAuthorizationService, { 4: options });
-        this.services.addScoped(TOKENS.AUTHORIZATION_SERVICE,
+        this.services.addScoped(AuthorizationService,
             DefaultAuthorizationServiceImpl as any as new () => IAuthorizationService, { 4: options });
 
         // Cast any, to omit readonly
@@ -164,11 +185,61 @@ export abstract class AppContext extends AuthorizationExtensions {
         const options = { value: this.identityOptions };
         //
         // Fallback to add identity services
-        this.services.addScoped(TOKENS.POLICY_AUTHORIZATION_SERVICE,
+        this.services.addScoped(PolicyAuthorizationService,
             DefaultPolicyAuthorizationService as any as new () => IPolicyAuthorizationService<TKey, TUser>, { 3: options });
 
         // Cast any, to omit readonly
         (AppContext.PROVIDER as any) = this.services.build();
+    }
+
+    private registerUserServices<
+        TKey  extends AllowedPrimaryKeysSafe, 
+        TUser extends IdentityUser<TKey>, 
+        TRole extends IdentityRole<TKey>, 
+        TContext extends DbContext,
+        >() {
+        if (!AppContext.PROVIDER) {
+            throw new Error("Pipeline must call registerServices() first");
+        }
+        // Cast any to enforce readonly
+        const options = { value: this.identityOptions };
+        const errorDescriber = new IdentityErrorDescriber();
+        //
+        this.services.addScoped(UserStore,
+            UserStore as any as new () => UserStore<TUser, TRole, TKey, TContext>, { 1: IdentityUser, 2: IdentityRole });
+        this.services.addScoped(RoleStore,
+            RoleStore as any as new () => RoleStore<TRole, TKey, TContext>, { });
+        //
+        this.services.addScoped(UserManager,
+            UserManager as any as new () => UserManager<TKey, TUser>, {6: errorDescriber, 7: options });
+        this.services.addScoped(UserManager1,
+            UserManager1 as any as new () => UserManager1<TKey, TUser>, { 6: errorDescriber, 7: options });
+
+        this.services.addScoped(RoleManager,
+            RoleManager as any as new () => RoleManager<TKey, TRole>, { 3: errorDescriber });
+
+        // this.services.addScoped(UserClaimsPrincipalFactory,
+        //     UserClaimsPrincipalFactory as any as new () => IUserClaimsPrincipalFactory<TKey, TUser>, { 2: options });
+            
+        // Cast any, to omit readonly
+        (AppContext.PROVIDER as any) = this.services.build();
+    }
+
+    addDbContext<TContext extends DbContext>(
+        context: new (...args: any[]) => TContext,
+        callback: (services: ServiceCollection, options: DbContextOptions) => ServiceCollection) {
+        
+        if (typeof callback === "function") {
+            callback(this.services, this.contextOptions);
+           
+            // This ensures that identity_context is added to app context
+            if (new context() instanceof IdentityDbContext)
+                this.identity_context = true;
+            
+            // Cast any, to omit readonly
+            (AppContext.PROVIDER as any) = this.services.build();
+        }
+
     }
 
     addAuthentication(
@@ -189,6 +260,9 @@ export abstract class AppContext extends AuthorizationExtensions {
         this.registerIdentityServices();
         //
         this.registerPolicyServices();
+        //
+        if (this.identity_context)
+            this.registerUserServices();
     }
 
     useRouting() {
@@ -206,13 +280,19 @@ export abstract class AppContext extends AuthorizationExtensions {
                     const requestParams = new RequestParams(resolution.headers, resolution.routeParams, resolution.queryParams);
                     const requestMeta   = new RequestMeta(resolution.method, resolution.template);
                     //
+
                     ctx.items.set(RequestParams,  requestParams);
                     ctx.items.set(RequestMeta,    requestMeta);
-                    ctx.items.set(RequestHandler, async (...args: any[]) => {
+                    
+                    ctx.items.set(RequestHandler, resolution.handler);
+                    ctx.items.set(ResponseHandler, async (...args: any[]) => {
                         return invokeWithBindings(resolution.handler, resolution.routeName, resolution);
                     });
+
+                    await next();
+                } else {
+                    ctx.response.notfound();
                 }
-                await next()
             }
         );
     }
@@ -221,7 +301,7 @@ export abstract class AppContext extends AuthorizationExtensions {
         if (!this.authentication) {
             throw new Error("We must call addAuthentication() first");
         }
-
+        //
         this.middlewares.push(useAuthentication);
     }
 
@@ -236,7 +316,18 @@ export abstract class AppContext extends AuthorizationExtensions {
     use(mw: Middleware) {
         this.middlewares.push(mw);
     }
-  
+    
+    private buildContext(req: IncomingMessage, res: ServerResponse): HttpContext {
+        const context = new HttpContext(req, res);
+        context.requestServices = AppContext.PROVIDER;
+        context.items.set(AuthenticationOptions, this.authenticationOptions);
+        context.items.set(AuthorizationOptions, this.authorizationOptions);
+        context.items.set(IdentityOptions, this.identityOptions);
+        context.items.set(DbContextOptions, this.contextOptions);
+
+        return context;
+    }
+
     start(
         port: number,
         configureServer?: (
@@ -260,8 +351,7 @@ export abstract class AppContext extends AuthorizationExtensions {
         const pipeline: Middleware[] = [...this.middlewares];
 
         const defaultServer = createServer((req, res) => { 
-            const context = new HttpContext(req, res);
-            context.requestServices = AppContext.PROVIDER;
+            const context = this.buildContext(req, res);
 
             HttpContextAccessor.runWithContext<HttpContext>(context, () => {
                 this.runPipeline(context, pipeline);
@@ -281,8 +371,7 @@ export abstract class AppContext extends AuthorizationExtensions {
 
             // Prepend our pipeline as the sole request listener
             configuredServer.on("request", (req, res) => {
-                const context = new HttpContext(req, res);
-                context.requestServices = AppContext.PROVIDER;
+                const context = this.buildContext(req, res);
                 
                 HttpContextAccessor.runWithContext<HttpContext>(context, () => {
                     this.runPipeline(context, pipeline);
@@ -309,7 +398,7 @@ export abstract class AppContext extends AuthorizationExtensions {
             } 
             else 
             {
-                const handler = context.items.get(RequestHandler);
+                const handler = context.items.get(ResponseHandler);
                 if (handler && typeof handler === "function") {
                     const result = await handler('GET RESULT');
 
@@ -330,8 +419,7 @@ export abstract class AppContext extends AuthorizationExtensions {
                         }
                     }
                 } else {
-                    context.response.statusCode = 404;
-                    context.response.end("Not Found");
+                    context.response.notfound();
                 }
             }
 

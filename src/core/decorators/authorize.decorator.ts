@@ -1,7 +1,8 @@
-import { IClaim } from "../claims/types.js";
-import { ClaimsAuthorizationRequirement, RolesAuthorizationRequirement } from "../core/index.js";
-import { IAuthorizationRequirement } from "../core/types/index.js";
-import { isEmpty } from "../utils.js";
+import { IClaim } from "../../claims/types.js";
+import { isEmpty } from "../../utils.js";
+import { ClaimsAuthorizationRequirement } from "../claims.authorization.requirement.js";
+import { RolesAuthorizationRequirement } from "../roles.authorization.requirement.js";
+import { IAuthorizationRequirement } from "../types/index.js";
 
 export interface IPolicyClaimsAuthorizationType {
     [claimType: string]: IPolicyClaimsAuthorizationValue;
@@ -50,8 +51,8 @@ export function Authorize(roles?: Iterable<string>, claims?: Iterable<IClaim>): 
     }
 
     const fn = descriptor ? descriptor.value : target;
-    const existing = (fn as any).__requirements || [];
-
+    const existing = Reflect.get(fn, "__requirements") || [];
+    
     Reflect.defineProperty(fn, "__requirements", {
         value: [...existing, ...requirements],
         writable: false,

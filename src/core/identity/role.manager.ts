@@ -2,16 +2,18 @@
 
 import { Claim } from "../../claims/index.js";
 import { IClaim } from "../../claims/types.js";
-import { ILookupNormalizer, IQueryableRoleStore, IRoleClaimStore, IRoleStore } from "../extensions/index.js";
+import { ILookupNormalizer, IQueryableRoleStore, IRoleClaimStore, IRoleStore, LookupNormalizer } from "../extensions/index.js";
 import { ArgumentNullThrowHelper, NotSupportedException, ObjectDisposedThrowHelper } from "../../types/exception.js";
 import { IdentityRole } from "../types/index.js";
-import { IRoleValidator } from "../validators/index.js";
+import { IRoleValidator, RoleValidator } from "../validators/index.js";
 import { IdentityErrorDescriber } from "./identity.error.describer.js";
 import { IdentityError } from "./identity.error.js";
 import { IdentityResult } from "./identity.result.js";
 import { CancellationToken } from "../../types/cancellation.js";
 import { IQueryable } from "../../linq/index.js";
 import { AllowedPrimaryKeysSafe } from "../../contexts/index.js";
+import { RoleStore } from "../extensions/role-stores/index.js";
+import { Inject } from "../../decorators/index.js";
 
 /**
  * Abstraction for managing roles in a persistence store.
@@ -70,16 +72,17 @@ export class RoleManager<TKey extends AllowedPrimaryKeysSafe, TRole extends Iden
     /// Constructs a new instance of RoleManager{TRole}.
     /// </summary>
     constructor(
-        protected store: IRoleStore<TKey, TRole>,
-        roleValidators: Iterable<IRoleValidator<TKey, TRole>> | null,
-        public keyNormalizer: ILookupNormalizer,
-        public errorDescriber: IdentityErrorDescriber
+        @Inject(RoleStore) protected store: IRoleStore<TKey, TRole>,
+        @Inject(RoleValidator) roleValidators: Iterable<IRoleValidator<TKey, TRole>> | null,
+        @Inject(LookupNormalizer) public keyNormalizer: ILookupNormalizer,
+        public errorDescriber: IdentityErrorDescriber,
     ) {
         ArgumentNullThrowHelper.throwIfNull(store);
         if (roleValidators) {
-            for (const v of roleValidators) {
-                this.roleValidators.push(v);
-            }
+            if (Array.isArray(roleValidators))
+                this.roleValidators.push(...roleValidators);
+            else
+                this.roleValidators.push(roleValidators as any);
         }
     }
 

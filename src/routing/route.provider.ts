@@ -82,29 +82,3 @@ export class RouteProvider implements IRouteProvider {
     return null;
   }
 }
-
-
-// // routes.ts
-// const collection = new RouteCollection();
-// collection.add("GET", "/public", (ctx: HttpContext) => {
-//   ctx.response.end("Anyone can access data");
-// });
-// collection.add("GET", "/admin", (ctx: HttpContext) => {
-//   ctx.response.end("Admin-only data");
-// });
-// collection.add("GET", "/finance/:dept", (ctx: HttpContext, dept: string) => {
-//   ctx.response.end(`Finance department: ${dept}`);
-// });
-
-// const provider = collection.build();
-
-// // pipeline.ts
-// const resolution = provider.resolve(context.request.url, context.request.method);
-// if (resolution) {
-//   const { handler, params } = resolution;
-//   context.routeParams = params;
-//   handler(context, ...Object.values(params));
-// } else {
-//   context.response.statusCode = 404;
-//   context.response.end("Not Found");
-// }

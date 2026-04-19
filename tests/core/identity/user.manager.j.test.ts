@@ -75,12 +75,12 @@ describe("UserManager internal helpers & validation", () => {
     store = new FakeStore(new DbContextOptions(optionsAccessor.value));
     manager = new UserManager(
       store,
-      optionsAccessor,
       hasher,
       [new UserValidator(errorDescriber)],
       [new PasswordValidator(errorDescriber)],
       new FakeNormalizer(),
-      errorDescriber
+      errorDescriber,
+      optionsAccessor,
     );
     user = new TestUser();
   });

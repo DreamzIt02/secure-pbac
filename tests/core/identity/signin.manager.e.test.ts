@@ -113,12 +113,12 @@ describe("SignInManager two-factor functions", () => {
     store = new FakeStore(new DbContextOptions(optionsAccessor.value));
     userManager = new UserManager(
       store,
-      optionsAccessor,
       hasher,
       [new UserValidator(errorDescriber)],
       [new PasswordValidator(errorDescriber)],
       new LookupNormalizer(),
-      errorDescriber
+      errorDescriber,
+      optionsAccessor,
     );
     user = new TestUser();
     claimsFactory = new DummyClaimsFactory(userManager, optionsAccessor);

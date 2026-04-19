@@ -13,6 +13,10 @@ export class RequestHandler {
 
 }
 
+export class ResponseHandler {
+
+}
+
 export class RequestParams {
   public readonly headers    : Record<string, string>;
   public readonly routeParams: Record<string, string>;

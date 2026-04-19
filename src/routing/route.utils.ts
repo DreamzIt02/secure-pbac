@@ -23,7 +23,7 @@ export function normalizeRoutePath(basePath: string): string {
 }
 
 export async function invokeWithBindings(handler: Function, routeName: string, resolution: RouteResolution) {
-  const bindings: ParamBinding[] = resolution.metadata[routeName];
+  const bindings: ParamBinding[] = resolution.metadata[routeName] ?? [];
   const args: any[] = [];
   
   for (const binding of bindings) {

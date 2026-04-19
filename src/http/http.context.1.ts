@@ -51,11 +51,11 @@ export class NodeHttpContext extends HttpContextBase {
 
   constructor(req: IncomingMessage, res: ServerResponse) {
     super();
-    this.request = req;
+    this.request  = req;
     this.response = res;
 
     // Initialize all members with default values
-    this.features = {} as IFeatureCollection;
+    this.features   = {} as IFeatureCollection;
     this.connection = {} as ConnectionInfo;
     this.webSockets = {} as WebSocketManager;
     this.user = new ClaimsPrincipal([]);
@@ -130,26 +130,3 @@ export class NodeHttpContextAccessor extends HttpContextAccessorBase {
     return this.httpContextCurrent.getStore()?.context as NodeHttpContext ?? null;
   }
 }
-
-// ### 🔑 How to use
-// ```ts
-// import { createServer } from "http";
-// import { HttpContext, HttpContextAccessor } from "./http-context";
-
-// const server = createServer((req, res) => {
-//   const context = new HttpContext(req, res);
-
-//   HttpContextAccessor.runWithContext(context, () => {
-//     // Inside this callback, HttpContextAccessor.current is available
-//     console.log("TraceIdentifier:", HttpContextAccessor.current?.req.url);
-
-//     // we can set user info, items, etc.
-//     HttpContextAccessor.current!.user = { id: 123, name: "Alice" };
-
-//     res.writeHead(200);
-//     res.end("Hello from HttpContext wrapper!");
-//   });
-// });
-
-// server.listen(3000);
-// ```

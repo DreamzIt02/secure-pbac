@@ -59,12 +59,12 @@ describe("UserManager login methods", () => {
     store = new FakeStore(new DbContextOptions(optionsAccessor.value));
     manager = new UserManager(
       store,
-      optionsAccessor,
       hasher,
       [new UserValidator(errorDescriber)],
       [new PasswordValidator(errorDescriber)],
       new FakeNormalizer(),
-      errorDescriber
+      errorDescriber,
+      optionsAccessor,
     );
     user = new TestUser();
   });
@@ -81,12 +81,12 @@ describe("UserManager login methods", () => {
     const badStore = { dispose() {} };
     const badManager = new UserManager(
       badStore as any,
-      { value: {} } as any,
       new FakeHasher() as any,
       [],
       [],
       new FakeNormalizer() as any,
-      new IdentityErrorDescriber()
+      new IdentityErrorDescriber(),
+      { value: {} } as any,
     );
     expect(badManager.users).toBeUndefined();
   });

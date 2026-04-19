@@ -133,12 +133,12 @@ describe("UserClaimsPrincipalFactory", () => {
     
     userManager = new UserManager<string, TestUser>(
         fakeStore,
-        fakeOptions,
         fakeHasher,
         fakeUserValidators,
         fakePasswordValidators,
         fakeNormalizer,
-        fakeErrors
+        fakeErrors,
+        fakeOptions,
     );
     roleManager = new RoleManager<string, TestRole>(fakeRoleStore, fakeRoleValidators, fakeNormalizer, fakeErrors);
 

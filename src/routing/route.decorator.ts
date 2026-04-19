@@ -2,8 +2,8 @@ import { HttpMethod } from "../http/index.js";
 import { normalizeRoutePath } from "./route.utils.js";
 import { BindingSource, RouteMetadata } from "./types.js";
 
-const ROUTE_META = "__route_meta";
-const PARAM_BINDINGS_KEY = Symbol("param_bindings");
+const ROUTE_META         = Symbol("ROUTE_META");
+const PARAM_BINDINGS_KEY = Symbol("PARAM_BINDINGS");
 
 // Decorator factory
 // Decorators are first hits the method, then its class

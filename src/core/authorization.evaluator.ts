@@ -8,6 +8,12 @@ export interface IAuthorizationEvaluator {
   evaluate(context: AuthorizationHandlerContext): AuthorizationResult;
 }
 
+export class AuthorizationEvaluator implements IAuthorizationEvaluator {
+  evaluate(context: AuthorizationHandlerContext): AuthorizationResult {
+    throw new Error("Method not implemented.");
+  }
+}
+
 /**
  * Default evaluator that inspects the AuthorizationHandlerContext
  * and produces an AuthorizationResult.

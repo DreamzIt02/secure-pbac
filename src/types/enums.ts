@@ -162,7 +162,40 @@ export function tryParse<
   output.value = undefined as any;
   return false;
 }
-
+/**
+ * Attempts to parse a string | number into a valid TEnum.
+ * 
+ * It accepts either enum name or value
+ * @param enumObj 
+ * @param value 
+ * @param output 
+ * @returns 
+ */
+export function tryParseSafe<
+  TEnum extends Record<string, string | number>
+>(
+  enumObj: TEnum,
+  value: string | unknown,
+  output: { value: TEnum[keyof TEnum] }
+): boolean {
+  const enumNames   = extractEnumName(enumObj, true) as Array<string>;
+  const enumValues  = extractEnum(enumObj, true);
+  for (const key of enumNames) {
+    if (key === value) {
+      output.value = enumObj[key] as TEnum[keyof TEnum];
+      return true;
+    }
+  }
+  for (const key of enumValues) {
+    if (key === value) {
+      output.value = key as TEnum[keyof TEnum];
+      return true;
+    }
+  }
+  // return num as T[keyof T];
+  output.value = undefined as any;
+  return false;
+}
 
 // * ✅ Safe for **numeric + string enums**
 // * ✅ Handles `"1"` → `1`
@@ -218,7 +251,7 @@ export function tryParse<
 
 // Overload signatures
 export function extractEnum<T extends Record<string, string | number>>(enumObj: T): Partial<T>;
-export function extractEnum<T extends Record<string, string | number>>(enumObj: T, asArray: true): (string | number)[];
+export function extractEnum<T extends Record<string, string | number>>(enumObj: T, asArray: boolean): (string | number)[];
 
 // Implementation
 export function extractEnum<T extends Record<string, string | number>>(enumObj: T, asArray?: boolean): Partial<T> | (string | number)[] {
@@ -227,6 +260,21 @@ export function extractEnum<T extends Record<string, string | number>>(enumObj: 
   if (asArray) {
     // return array of values
     return entries.map(([, value]) => value);
+  }
+
+  // return object with only string keys
+  const result: any = {};
+  for (const [key, value] of entries) {
+    result[key] = value;
+  }
+  return result;
+}
+export function extractEnumName<T extends Record<string, string | number>>(enumObj: T, asArray?: boolean): Partial<T> | (string | number)[] {
+  const entries = Object.entries(enumObj).filter(([key]) => isNaN(Number(key)));
+
+  if (asArray) {
+    // return array of values
+    return entries.map(([key, value]) => key);
   }
 
   // return object with only string keys

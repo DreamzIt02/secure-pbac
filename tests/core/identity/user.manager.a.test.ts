@@ -73,7 +73,15 @@ describe("UserManager basic coverage", () => {
 
   beforeEach(() => {
     store = new FakeStore(new DbContextOptions(optionsAccessor.value));
-    manager = new UserManager(store, optionsAccessor, hasher, [ new UserValidator(errorDescriber) ], [ new PasswordValidator(errorDescriber) ], new FakeNormalizer(), errorDescriber);
+    manager = new UserManager(
+      store, 
+      hasher, 
+      [ new UserValidator(errorDescriber) ], 
+      [ new PasswordValidator(errorDescriber) ], 
+      new FakeNormalizer(), 
+      errorDescriber,
+      optionsAccessor, 
+    );
     user = new TestUser();
   });
 

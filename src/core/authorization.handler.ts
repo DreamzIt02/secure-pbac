@@ -71,7 +71,7 @@ export abstract class AuthorizationHandler<
    * @param resource The resource to evaluate.
    */
   protected abstract handleRequirementAsync(
-    context: AuthorizationHandlerContext,
+    context : AuthorizationHandlerContext,
     requirement: TRequirement,
     resource: TResource
   ): Promise<void>;

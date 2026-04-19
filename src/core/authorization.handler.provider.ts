@@ -16,6 +16,12 @@ export interface IAuthorizationHandlerProvider {
   getHandlersAsync(context: AuthorizationHandlerContext): Promise<Iterable<IAuthorizationHandler>>;
 }
 
+export class AuthorizationHandlerProvider implements IAuthorizationHandlerProvider {
+  getHandlersAsync(context: AuthorizationHandlerContext): Promise<Iterable<IAuthorizationHandler>> {
+    throw new Error("Method not implemented.");
+  }
+}
+
 /**
  * The default implementation of a handler provider,
  * which provides the IAuthorizationHandlers for an authorization request.

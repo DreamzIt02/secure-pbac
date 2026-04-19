@@ -2,7 +2,7 @@ import { Claim } from "../claims/index.js";
 import { AuthorizationHandler, AuthorizationHandlerContext } from "../core/index.js";
 import { IAuthorizationRequirement } from "../core/types/index.js";
 import { ArgumentNullThrowHelper } from "../types/exception.js";
-import { ClaimExpression, IPolicyExpressionEvaluatorFactory, PolicyExpressionEvaluatorFactory} from "./policy.expression.evaluator.factory.js";
+import { ClaimExpression, PolicyExpressionEvaluatorFactory} from "./policy.expression.evaluator.factory.js";
 
 /**
  * Implements an IAuthorizationHandler and IAuthorizationRequirement
@@ -16,14 +16,12 @@ export class PolicyClaimsAuthorizationRequirement
   implements IAuthorizationRequirement
 {
   private readonly expressionFactory  : () => ClaimExpression;
-  private readonly expressionEvaluator: IPolicyExpressionEvaluatorFactory;
 
   // Implementation
   constructor(expressionFactory: () => ClaimExpression) {
     ArgumentNullThrowHelper.throwIfNull(expressionFactory);
     super();
     this.expressionFactory   = expressionFactory;
-    this.expressionEvaluator = new PolicyExpressionEvaluatorFactory();
   }
 
   // Overload signatures to satisfy base class
@@ -45,7 +43,8 @@ export class PolicyClaimsAuthorizationRequirement
   ): Promise<void> {
     if (context.user) {
       const expr       = this.expressionFactory();
-      const authorized = await this.expressionEvaluator.evaluateClaims(expr, context.user, resource);
+      const evaluator  = new PolicyExpressionEvaluatorFactory();
+      const authorized = await evaluator.evaluateClaims(expr, context.user, resource);
       
       if (authorized.succeeded) {
         context.succeed(requirement);

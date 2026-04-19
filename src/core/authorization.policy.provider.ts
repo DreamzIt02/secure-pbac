@@ -36,6 +36,18 @@ export interface IAuthorizationPolicyProvider {
   allowsCachingPolicies?: boolean;
 }
 
+export class AuthorizationPolicyProvider implements IAuthorizationPolicyProvider {
+  getPolicyAsync(policyName: string): Promise<AuthorizationPolicy | null> {
+    throw new Error("Method not implemented.");
+  }
+  getDefaultPolicyAsync(): Promise<AuthorizationPolicy> {
+    throw new Error("Method not implemented.");
+  }
+  getFallbackPolicyAsync(): Promise<AuthorizationPolicy | null> {
+    throw new Error("Method not implemented.");
+  }
+  allowsCachingPolicies?: boolean | undefined;
+}
 /**
  * The default implementation of a policy provider,
  * which provides an AuthorizationPolicy for a particular name.

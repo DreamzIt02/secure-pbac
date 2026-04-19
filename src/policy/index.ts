@@ -1,6 +1,6 @@
 export { AuthorizationExtensions } from "./policy.authorization.extensions.js"
 export { PolicyAuthorizationResult } from "./policy.authorization.result.js"
-export { DefaultPolicyAuthorizationService } from "./policy.authorization.service.impl.js"
+export { PolicyAuthorizationService, DefaultPolicyAuthorizationService } from "./policy.authorization.service.impl.js"
 
 export type { IPolicyAuthorizationService } from "./policy.authorization.service.js"
 export { PolicyEvaluator } from "./policy.evaluator.js"

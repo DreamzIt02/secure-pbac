@@ -119,12 +119,12 @@ describe("UserValidator", () => {
     const fakeOptions: IOptions<IdentityOptions> = { value: new IdentityOptions() };
     manager = new UserManager<string, TestUser>(
       fakeStore as any,
-      fakeOptions,
       fakeHasher,
       fakeUserValidators,
       fakePasswordValidators,
       fakeNormalizer,
-      fakeErrors
+      fakeErrors,
+      fakeOptions,
     );
   });
 

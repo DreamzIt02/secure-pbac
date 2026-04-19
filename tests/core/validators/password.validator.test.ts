@@ -121,12 +121,12 @@ describe("PasswordValidator", () => {
     validator = new PasswordValidator<string, TestUser>(new IdentityErrorDescriber());
     manager = new UserManager<string, TestUser>(
         fakeStore as any,
-        fakeOptions,
         fakeHasher,
         fakeUserValidators,
         fakePasswordValidators,
         fakeNormalizer,
-        fakeErrors
+        fakeErrors,
+        fakeOptions,
     );
     user = new TestUser("user", "user@example.com");
     // default options

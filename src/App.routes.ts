@@ -1,11 +1,14 @@
-import { AllowAnonymous, Authorize } from './decorators/index.js';
-import { Claim } from './claims/index.js';
+import { AuthorizeClaimEnum, SiteClaim } from './claims/index.js';
+import { AllowAnonymous, Authorize } from './core/decorators/index.js';
 import { HttpMethod } from './http/index.js';
+import { GroupPolicy, GroupPolicyEnum } from './policies/index.js';
+import { AuthorizeHierarchy } from './policy/decorators/index.js';
+import { AuthorizeRoleEnum, SiteRole } from './roles/index.js';
 import { FromQuery, Route, RouteCollection } from './routing/index.js';
 
 @Route("user") // class-level prefix
 class UserController {
-  @Route(HttpMethod.GET, "/:id")
+  @Route(HttpMethod.GET, "/public")
   @AllowAnonymous()
   publicHandler(
     @FromQuery("id") id: string, @FromQuery("type") type: string
@@ -14,15 +17,36 @@ class UserController {
   }
 
   @Route(HttpMethod.GET, "/admin")
-  @Authorize(["Admin"])
+  @Authorize([SiteRole.authorizeRoleName(AuthorizeRoleEnum.Default)])
   adminHandler() {
-    return "Admin-only data";
+    return "Admin-only data for this route";
   }
 
   @Route(HttpMethod.GET, "/finance")
-  @Authorize(["Manager"], [new Claim("Department", "Finance")])
+  @Authorize(
+    [SiteRole.authorizeRoleName(AuthorizeRoleEnum.AuthorizeManager)], 
+    [SiteClaim.newClaim(AuthorizeClaimEnum.DepartmentFinance)!]
+  )
   financeHandler() {
-    return "Finance department data";
+    return "Finance department data for this route";
+  }
+
+  @Route(HttpMethod.GET, "/administration")
+  @AuthorizeHierarchy(
+    GroupPolicy.getGroupPolicies(GroupPolicyEnum.Manager),
+    () => ({
+      or: [
+        SiteClaim.newClaim(AuthorizeClaimEnum.DepartmentAdministration)!,
+        { and: [
+            SiteClaim.newClaim(AuthorizeClaimEnum.DepartmentUser)!,
+            SiteClaim.newClaim(AuthorizeClaimEnum.DepartmentContent)! 
+          ]
+        }
+      ]
+    })
+  )
+  administrationHandler() {
+    return "Administration department data for this route";
   }
 }
 
@@ -39,8 +63,11 @@ function financeHandler() {
 }
 
 AllowAnonymous()(publicHandler); // attach requirements metadata
-Authorize(["Admin"])(adminHandler);
-Authorize(["Manager"], [new Claim("Department", "Finance")])(financeHandler);
+Authorize([SiteRole.authorizeRoleName(AuthorizeRoleEnum.Default)])(adminHandler);
+Authorize(
+  [SiteRole.authorizeRoleName(AuthorizeRoleEnum.AuthorizeManager)], 
+  [SiteClaim.newClaim(AuthorizeClaimEnum.DepartmentFinance)!]
+)(financeHandler);
 
 // ### 3. Route registration (`routes.ts`)
 export function appRoutes(routes: RouteCollection): RouteCollection {

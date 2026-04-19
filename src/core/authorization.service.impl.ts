@@ -1,19 +1,27 @@
-import { TOKENS } from "../App.tokens.js";
 import { ClaimsPrincipal } from "../claims/index.js";
 import { Inject } from "../decorators/index.js";
+import { Injectable } from "../decorators/inject.decorator.js";
 import { ArgumentNullThrowHelper, InvalidOperationException } from "../types/exception.js";
 import { IOptions } from "../types/index.js";
-import { IAuthorizationEvaluator } from "./authorization.evaluator.js";
-import { IAuthorizationHandlerContextFactory } from "./authorization.handler.context.factory.js";
-import { IAuthorizationHandlerProvider } from "./authorization.handler.provider.js";
+import { AuthorizationEvaluator, IAuthorizationEvaluator } from "./authorization.evaluator.js";
+import { AuthorizationHandlerContextFactory, IAuthorizationHandlerContextFactory } from "./authorization.handler.context.factory.js";
+import { AuthorizationHandlerProvider, IAuthorizationHandlerProvider } from "./authorization.handler.provider.js";
 import { AuthorizationMetrics } from "./authorization.metrics.js";
 import { AuthorizationOptions } from "./authorization.options.js";
 import { AuthorizationPolicy } from "./authorization.policy.js";
-import { IAuthorizationPolicyProvider } from "./authorization.policy.provider.js";
+import { AuthorizationPolicyProvider, IAuthorizationPolicyProvider } from "./authorization.policy.provider.js";
 import { AuthorizationResult } from "./authorization.result.js";
 import { IAuthorizationService } from "./authorization.service.js";
 import { IAuthorizationRequirement } from "./types/index.js";
 
+@Injectable()
+export class AuthorizationService implements IAuthorizationService {
+  authorizeAsync(user: ClaimsPrincipal, resource: object | null, requirements: Iterable<IAuthorizationRequirement>): Promise<AuthorizationResult>;
+  authorizeAsync(user: ClaimsPrincipal, resource: object | null, policyName: string): Promise<AuthorizationResult>;
+  authorizeAsync(user: unknown, resource: unknown, policyName: unknown): Promise<AuthorizationResult> {
+    throw new Error("Method not implemented.");
+  }
+}
 /**
  * The default implementation of an IAuthorizationService.
  */
@@ -34,26 +42,26 @@ export class DefaultAuthorizationService implements IAuthorizationService {
    * @param options The AuthorizationOptions used.
    */
   constructor(
-    @Inject(TOKENS.AUTHORIZATION_POLICY_PROVIDER) policyProvider: IAuthorizationPolicyProvider,
-    @Inject(TOKENS.AUTHORIZATION_HANDLER_PROVIDER) handlers     : IAuthorizationHandlerProvider,
-    @Inject(TOKENS.AUTHORIZATION_HANDLER_CONTEXT_FACTORY) contextFactory: IAuthorizationHandlerContextFactory,
-    @Inject(TOKENS.AUTHORIZATION_EVALUATOR) evaluator           : IAuthorizationEvaluator,
-    options                                              : IOptions<AuthorizationOptions>,
+    @Inject(AuthorizationPolicyProvider) policyProvider: IAuthorizationPolicyProvider,
+    @Inject(AuthorizationHandlerProvider) handlers     : IAuthorizationHandlerProvider,
+    @Inject(AuthorizationHandlerContextFactory) factory: IAuthorizationHandlerContextFactory,
+    @Inject(AuthorizationEvaluator) evaluator          : IAuthorizationEvaluator,
+    options                                            : IOptions<AuthorizationOptions>,
   ) {
-    if (!options || !policyProvider || !handlers || !contextFactory || !evaluator) {
+    if (!options || !policyProvider || !handlers || !factory || !evaluator) {
       throw new Error('ArgumentNullException');
     }
     ArgumentNullThrowHelper.throwIfNull(options);
     ArgumentNullThrowHelper.throwIfNull(policyProvider);
     ArgumentNullThrowHelper.throwIfNull(handlers);
-    ArgumentNullThrowHelper.throwIfNull(contextFactory);
+    ArgumentNullThrowHelper.throwIfNull(factory);
     ArgumentNullThrowHelper.throwIfNull(evaluator);
 
     this.options        = options.value;
     this.handlers       = handlers;
     this.policyProvider = policyProvider;
     this.evaluator      = evaluator;
-    this.contextFactory = contextFactory;
+    this.contextFactory = factory;
   }
   /**
    * Checks if a user meets a specific set of requirements for the specified resource.
@@ -91,7 +99,7 @@ export class DefaultAuthorizationService implements IAuthorizationService {
         return this._authorizeAsync(user, resource, requirements);
 
     const authContext = this.contextFactory.createContext(requirements, user, resource);
-    const handlers = await this.handlers.getHandlersAsync(authContext);
+    const handlers    = await this.handlers.getHandlersAsync(authContext);
 
     for (const handler of handlers) {
       await handler.handleAsync(authContext);
@@ -141,12 +149,12 @@ export class DefaultAuthorizationServiceImpl extends DefaultAuthorizationService
   private readonly metrics: AuthorizationMetrics;
 
   constructor(
-    @Inject(TOKENS.AUTHORIZATION_POLICY_PROVIDER) policyProvider: IAuthorizationPolicyProvider,
-    @Inject(TOKENS.AUTHORIZATION_HANDLER_PROVIDER) handlers     : IAuthorizationHandlerProvider,
-    @Inject(TOKENS.AUTHORIZATION_HANDLER_CONTEXT_FACTORY) factory: IAuthorizationHandlerContextFactory,
-    @Inject(TOKENS.AUTHORIZATION_EVALUATOR) evaluator           : IAuthorizationEvaluator,
-    options                                              : IOptions<AuthorizationOptions>,
-    @Inject(TOKENS.AUTHORIZATION_METRICS) metrics                       : AuthorizationMetrics
+    @Inject(AuthorizationPolicyProvider) policyProvider: IAuthorizationPolicyProvider,
+    @Inject(AuthorizationHandlerProvider) handlers     : IAuthorizationHandlerProvider,
+    @Inject(AuthorizationHandlerContextFactory) factory: IAuthorizationHandlerContextFactory,
+    @Inject(AuthorizationEvaluator) evaluator          : IAuthorizationEvaluator,
+    options                                            : IOptions<AuthorizationOptions>,
+    @Inject(AuthorizationMetrics) metrics              : AuthorizationMetrics
   ) {
     super(policyProvider, handlers, factory, evaluator, options);
     this.metrics = metrics;

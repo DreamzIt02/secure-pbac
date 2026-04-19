@@ -1,7 +1,7 @@
 import { AuthorizationHandler, AuthorizationHandlerContext } from "../core/index.js";
 import { IAuthorizationRequirement } from "../core/types/index.js";
 import { ArgumentNullThrowHelper } from "../types/exception.js";
-import { IPolicyExpressionEvaluatorFactory, PolicyExpressionEvaluatorFactory, RoleExpression } from "./policy.expression.evaluator.factory.js";
+import { PolicyExpressionEvaluatorFactory, RoleExpression } from "./policy.expression.evaluator.factory.js";
 
 /**
  * Implements an IAuthorizationHandler and IAuthorizationRequirement
@@ -15,14 +15,12 @@ export class PolicyRolesAuthorizationRequirement
   implements IAuthorizationRequirement
 {
   private readonly expressionFactory  : () => RoleExpression;
-  private readonly expressionEvaluator: IPolicyExpressionEvaluatorFactory;
   
   // Implementation
   constructor(expressionFactory: () => RoleExpression) {
     ArgumentNullThrowHelper.throwIfNull(expressionFactory);
     super();
     this.expressionFactory   = expressionFactory;
-    this.expressionEvaluator = new PolicyExpressionEvaluatorFactory();
   }
 
   // Overload signatures to satisfy base class
@@ -44,7 +42,8 @@ export class PolicyRolesAuthorizationRequirement
   ): Promise<void> {
     if (context.user) {
       const expr       = this.expressionFactory();
-      const authorized = await this.expressionEvaluator.evaluateRoles(expr, context.user, resource);
+      const evaluator  = new PolicyExpressionEvaluatorFactory();
+      const authorized = await evaluator.evaluateRoles(expr, context.user, resource);
       
       if (authorized.succeeded) {
         context.succeed(requirement);

@@ -73,7 +73,15 @@ describe("UserManager", () => {
 
   beforeEach(() => {
     store = new FakeStore(new DbContextOptions(optionsAccessor.value));
-    manager = new UserManager(store, optionsAccessor, hasher, [ new UserValidator(errorDescriber) ], [ new PasswordValidator(errorDescriber) ], new FakeNormalizer(), errorDescriber);
+    manager = new UserManager(
+      store, 
+      hasher, 
+      [ new UserValidator(errorDescriber) ], 
+      [ new PasswordValidator(errorDescriber) ], 
+      new FakeNormalizer(), 
+      errorDescriber,
+      optionsAccessor, 
+    );
     user = new TestUser();
   });
 
@@ -89,12 +97,12 @@ describe("UserManager", () => {
     const badStore = { dispose() {} };
     const badManager = new UserManager(
       badStore as any,
-      { value: {} } as any,
       new FakeHasher() as any,
       [],
       [],
       new FakeNormalizer() as any,
-      new IdentityErrorDescriber()
+      new IdentityErrorDescriber(),
+      { value: {} } as any,
     );
     expect(badManager.users).toBeUndefined();
   });

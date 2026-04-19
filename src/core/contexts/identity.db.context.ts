@@ -15,10 +15,10 @@ import { IdentityUserContext } from "./identity.user.context.js";
 /// <typeparam name="TRoleClaim">The type of the role claim object.</typeparam>
 /// <typeparam name="TUserToken">The type of the user token object.</typeparam>
 /// <typeparam name="TUserPasskey">The type of the user passkey object.</typeparam>
-export abstract class IdentityDbContext<
+export class IdentityDbContext<
   TUser extends IdentityUser<TKey>,
   TRole extends IdentityRole<TKey>,
-  TKey extends AllowedPrimaryKeysSafe,
+  TKey  extends AllowedPrimaryKeysSafe,
   TUserRole  extends IdentityUserRole<TKey>  = IdentityUserRole<TKey>,
   TUserClaim extends IdentityUserClaim<TKey> = IdentityUserClaim<TKey>,
   TUserLogin extends IdentityUserLogin<TKey> = IdentityUserLogin<TKey>,

@@ -1,7 +1,8 @@
-import { AuthorizationHandler, AuthorizationHandlerContext, IAuthorizationService } from "../core/index.js";
+import { AuthorizationHandler, AuthorizationHandlerContext, AuthorizationService, IAuthorizationService } from "../core/index.js";
 import { IAuthorizationRequirement } from "../core/types/index.js";
+import { HttpContextAccessor } from "../http/index.js";
 import { ArgumentNullThrowHelper } from "../types/exception.js";
-import { IPolicyExpressionEvaluatorFactory, PolicyExpressionEvaluatorFactory, PolicyExpression } from "./policy.expression.evaluator.factory.js";
+import { PolicyExpressionEvaluatorFactory, PolicyExpression } from "./policy.expression.evaluator.factory.js";
 
 /**
  * Implements an IAuthorizationHandler and IAuthorizationRequirement
@@ -15,18 +16,14 @@ export class PolicyDefaultAuthorizationRequirement
   implements IAuthorizationRequirement
 {
   private readonly expressionFactory  : () => PolicyExpression;
-  private readonly expressionEvaluator: IPolicyExpressionEvaluatorFactory;
   
   // Implementation
   constructor(
-    expressionFactory: () => PolicyExpression, 
-    authService      : IAuthorizationService,
+    expressionFactory: () => PolicyExpression
   ) {
     ArgumentNullThrowHelper.throwIfNull(expressionFactory);
-    ArgumentNullThrowHelper.throwIfNull(authService);
     super();
     this.expressionFactory   = expressionFactory;
-    this.expressionEvaluator = new PolicyExpressionEvaluatorFactory(authService);
   }
 
   // Overload signatures to satisfy base class
@@ -46,9 +43,14 @@ export class PolicyDefaultAuthorizationRequirement
     requirement: PolicyDefaultAuthorizationRequirement,
     resource?  : object
   ): Promise<void> {
-    if (context.user) {
-      const expr       = this.expressionFactory();
-      const authorized = await this.expressionEvaluator.evaluatePolicies(expr, context.user, resource);
+    const httpContext   = HttpContextAccessor.current;
+    if (context.user && httpContext) {
+      const scope       = httpContext.requestServices.createScope();
+      const authService = scope.getRequiredService<IAuthorizationService>(AuthorizationService);
+
+      const expr        = this.expressionFactory();
+      const evaluator   = new PolicyExpressionEvaluatorFactory(authService);
+      const authorized  = await evaluator.evaluatePolicies(expr, context.user, resource);
 
       if (authorized.succeeded) {
         context.succeed(requirement);
@@ -56,44 +58,6 @@ export class PolicyDefaultAuthorizationRequirement
     }
     return Promise.resolve();
   }
-  
-  // private async evaluateExpression(expr: PolicyExpression, user: ClaimsPrincipal, resource?: object): Promise<boolean> {
-  //   if (typeof expr === "string") {
-  //     // Resolve named policy
-  //     const result = await this.authService.authorizeAsync(user, resource ?? null, expr);
-  //     // if (!policy) return false;
-  //     // Evaluate all requirements in the policy
-  //     // for (const requirement of policy.requirements) {
-  //     //   const innerContext = new AuthorizationHandlerContext([requirement], user, null);
-  //     //   const handlers = await this.policyHandler.getHandlersAsync(innerContext);
-
-  //     //   for (const handler of handlers) {
-  //     //     await handler.handleAsync(innerContext);
-  //     //     if (innerContext.hasFailed) {
-  //     //       break;
-  //     //     }
-  //     //   }
-        
-  //     //   if (!innerContext.hasSucceeded) {
-  //     //     return false;
-  //     //   }
-  //     // }
-  //     return result.succeeded;
-  //   }
-  //   if ("and" in expr) {
-  //     for (const e of expr.and) {
-  //       if (!(await this.evaluateExpression(e, user))) return false;
-  //     }
-  //     return true;
-  //   }
-  //   if ("or" in expr) {
-  //     for (const e of expr.or) {
-  //       if (await this.evaluateExpression(e, user)) return true;
-  //     }
-  //     return false;
-  //   }
-  //   return false;
-  // }
   
   /**
    * Type guard to check if the requirement is of type PolicyDefaultAuthorizationRequirement.

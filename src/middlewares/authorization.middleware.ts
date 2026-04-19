@@ -1,5 +1,6 @@
 import { ClaimsPrincipal } from "../claims/index.js";
 import { 
+  AuthorizationService,
   IAuthorizationService
 } from "../core/index.js";
 
@@ -8,7 +9,6 @@ import { isEmpty } from "../utils.js";
 import { ArgumentNullThrowHelper } from "../types/exception.js";
 import { Middleware, NextFn } from "./types.js";
 import { HttpContext, RequestHandler } from "../http/index.js";
-import { TOKENS } from "../App.tokens.js";
 
 /**
  * Authorization middleware factory.
@@ -23,7 +23,6 @@ export function useAuthorization (): Middleware {
     try {
 
         const User: ClaimsPrincipal = ctx.user;
-        // const handler: IAuthorizationRequestHandlerContext | null = getRouteHandler(ctx); // Get the decorated function
         const handler = ctx.items.get(RequestHandler) as IAuthorizationRequestHandlerContext | null;
 
         // Handler is required for global authorization middleware
@@ -38,17 +37,17 @@ export function useAuthorization (): Middleware {
         const requirements: Iterable<IAuthorizationHandler> = handler.__requirements;
         // No decorators — skip authorization
         if (!requirements || isEmpty(requirements)) return next();
-
-        const scope = ctx.requestServices.createScope();
-        const authService = scope.getRequiredService<IAuthorizationService>(TOKENS.AUTHORIZATION_SERVICE);
+        
+        const scope       = ctx.requestServices.createScope();
+        const authService = scope.getRequiredService<IAuthorizationService>(AuthorizationService);
         const authResult  = await authService.authorizeAsync(User, null, requirements);
 
-        if (authResult.succeeded) return next();
+        if (authResult.succeeded) return await next();
 
         return ctx.response.forbidden();
 
     } catch (error) {
-
+      //
       ctx.response.statusCode = 500;
       ctx.response.statusMessage = 'Authorization check failed';
       const body = JSON.stringify({ error: error });

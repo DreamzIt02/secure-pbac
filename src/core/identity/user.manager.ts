@@ -16,6 +16,8 @@ import {
     IPasswordHasher,
     IUserTwoFactorTokenProvider,
     UserTwoFactorTokenProviderFactory,
+    PasswordHasher,
+    LookupNormalizer,
 } from "../extensions/index.js";
 import { Claim, ClaimsPrincipal } from "../../claims/index.js";
 import { IClaim } from "../../claims/types.js";
@@ -23,7 +25,7 @@ import { IdentityErrorDescriber } from "./identity.error.describer.js";
 import { IdentityResult } from "./identity.result.js";
 import { IdentityOptions, TokenOptions } from "../options/index.js";
 import { IdentityRole, IdentityUser, PasswordVerificationResult, UserLoginInfo } from "../types/index.js";
-import { IPasswordValidator, IUserValidator } from "../validators/index.js";
+import { IPasswordValidator, IUserValidator, PasswordValidator, UserValidator } from "../validators/index.js";
 import { IdentityError } from "./identity.error.js";
 import { generateBase32, randomUUID } from "../../utils.js";
 import { CancellationToken } from "../../types/cancellation.js";
@@ -32,6 +34,7 @@ import { DefaultAuthenticatorKeyStore, DefaultTwoFactorRecoveryCodeStore, Defaul
 import { IQueryable } from "../../linq/index.js";
 import { AllowedPrimaryKeysSafe } from "../../contexts/index.js";
 import { IdentityDbContext } from "../contexts/index.js";
+import { Inject } from "../../decorators/index.js";
 
 // IUserManager.ts
 export interface IUserManager<TKey extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey>> {
@@ -147,13 +150,13 @@ export class UserManager<TKey extends AllowedPrimaryKeysSafe, TUser extends Iden
 
     public readonly options : IdentityOptions;
     constructor(
-        store          : UserStore<TUser, IdentityRole<TKey>, TKey, IdentityDbContext<TUser, IdentityRole<TKey>, TKey>>,
-        optionsAccessor: IOptions<IdentityOptions>,
-        passwordHasher : IPasswordHasher<TUser>,
-        userValidators : IUserValidator<TKey, TUser>[],
-        passwordValidators: IPasswordValidator<TKey, TUser>[],
-        keyNormalizer  : ILookupNormalizer,
-        errorDescriber : IdentityErrorDescriber,
+        @Inject(UserStore) store : UserStore<TUser, IdentityRole<TKey>, TKey, IdentityDbContext<TUser, IdentityRole<TKey>, TKey>>,
+        @Inject(PasswordHasher) passwordHasher : IPasswordHasher<TUser>,
+        @Inject(UserValidator) userValidators  : IUserValidator<TKey, TUser>[],
+        @Inject(PasswordValidator) passwordValidators: IPasswordValidator<TKey, TUser>[],
+        @Inject(LookupNormalizer) keyNormalizer: ILookupNormalizer,
+        errorDescriber  : IdentityErrorDescriber,
+        optionsAccessor : IOptions<IdentityOptions>,
     ) {
         this.store          = store;
         this.passwordHasher = passwordHasher;
@@ -162,10 +165,16 @@ export class UserManager<TKey extends AllowedPrimaryKeysSafe, TUser extends Iden
         this.options        = optionsAccessor?.value ?? new IdentityOptions();
 
         if (userValidators) {
-            this.userValidators.push(...userValidators);
+            if (Array.isArray(userValidators))
+                this.userValidators.push(...userValidators);
+            else
+                this.userValidators.push(userValidators);
         }
         if (passwordValidators) {
-            this.passwordValidators.push(...passwordValidators);
+            if (Array.isArray(passwordValidators))
+                this.passwordValidators.push(...passwordValidators);
+            else
+                this.passwordValidators.push(passwordValidators);
         }
         this._tokenProviders = new Map<string, IUserTwoFactorTokenProvider<TKey, TUser>>([ ]);
         const tokenProviders = UserTwoFactorTokenProviderFactory.defaultTokenProviders();

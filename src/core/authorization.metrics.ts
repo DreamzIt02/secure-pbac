@@ -1,4 +1,3 @@
-import { TOKENS } from "../App.tokens.js";
 import { ClaimsPrincipal } from "../claims/index.js";
 import { Inject } from "../decorators/index.js";
 import { AuthorizationResult } from "./authorization.result.js";
@@ -76,6 +75,11 @@ export class TagList {
   }
 }
 
+export class MeterFactory implements IMeterFactory {
+  create(name: string): Meter {
+    throw new Error("Method not implemented.");
+  }
+}
 /**
  * A basic meter factory implementation.
  */
@@ -102,7 +106,7 @@ export class AuthorizationMetrics implements IAuthorizationMetrics {
    * Creates a new instance of AuthorizationMetrics.
    * @param meterFactory The IMeterFactory used to create meters.
    */
-  constructor(@Inject(TOKENS.METER_FACTORY) meterFactory: IMeterFactory) {
+  constructor(@Inject(MeterFactory) meterFactory: IMeterFactory) {
     this.meter = meterFactory.create(AuthorizationMetrics.meterName);
 
     this.authorizedCount = this.meter.createCounter<number>(

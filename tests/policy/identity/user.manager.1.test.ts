@@ -83,7 +83,7 @@ describe("UserManager1 custom claim methods", () => {
       [new PasswordValidator(errorDescriber)],
       new FakeNormalizer(),
       errorDescriber,
-      optionsAccessor
+      optionsAccessor,
     );
     user = new TestUser();
   });

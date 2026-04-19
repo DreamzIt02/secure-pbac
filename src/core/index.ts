@@ -1,7 +1,7 @@
 export type { IAuthorizationMetrics, IMeterFactory } from "./authorization.metrics.js"
- export { DefaultMeterFactory, AuthorizationMetrics, Meter, Counter, TagList } from "./authorization.metrics.js"
+ export { MeterFactory, DefaultMeterFactory, AuthorizationMetrics, Meter, Counter, TagList } from "./authorization.metrics.js"
 
-export { DefaultAuthorizationEvaluator } from "./authorization.evaluator.js"
+export { AuthorizationEvaluator, DefaultAuthorizationEvaluator } from "./authorization.evaluator.js"
 export type { IAuthorizationEvaluator } from "./authorization.evaluator.js"
 
 export { AssertionRequirement } from "./assertion.requirement.js"
@@ -9,11 +9,11 @@ export { AuthorizationFailure } from "./authorization.failure.js"
 export { AuthorizationFailureReason } from "./authorization.failure.reason.js"
 export { AuthorizationHandlerContext} from "./authorization.handler.context.js"
 
-export { DefaultAuthorizationHandlerContextFactory } from "./authorization.handler.context.factory.js"
+export { AuthorizationHandlerContextFactory, DefaultAuthorizationHandlerContextFactory } from "./authorization.handler.context.factory.js"
 export type { IAuthorizationHandlerContextFactory } from "./authorization.handler.context.factory.js"
 export { AuthorizationHandler } from "./authorization.handler.js"
 
-export { DefaultAuthorizationHandlerProvider } from "./authorization.handler.provider.js"
+export { AuthorizationHandlerProvider, DefaultAuthorizationHandlerProvider } from "./authorization.handler.provider.js"
 export type { IAuthorizationHandlerProvider } from "./authorization.handler.provider.js"
 
 export { DefaultAuthorizationLogger } from "./authorization.logger.js"
@@ -23,11 +23,11 @@ export { AuthorizationOptions } from "./authorization.options.js"
 export { AuthorizationPolicyBuilder } from "./authorization.policy.builder.js"
 export { AuthorizationPolicy } from "./authorization.policy.js"
 
-export { DefaultAuthorizationPolicyProvider } from "./authorization.policy.provider.js"
+export { AuthorizationPolicyProvider, DefaultAuthorizationPolicyProvider } from "./authorization.policy.provider.js"
 export type { IAuthorizationPolicyProvider } from "./authorization.policy.provider.js"
 
 export { AuthorizationResult } from "./authorization.result.js"
-export { DefaultAuthorizationService, DefaultAuthorizationServiceImpl } from "./authorization.service.impl.js"
+export { AuthorizationService, DefaultAuthorizationService, DefaultAuthorizationServiceImpl } from "./authorization.service.impl.js"
 export type { IAuthorizationService } from "./authorization.service.js"
 
 export { ClaimsAuthorizationRequirement } from "./claims.authorization.requirement.js"

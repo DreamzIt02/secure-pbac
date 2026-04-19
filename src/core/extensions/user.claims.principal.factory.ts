@@ -2,6 +2,7 @@
 
 import { Claim, ClaimsIdentity, ClaimsPrincipal } from "../../claims/index.js";
 import { AllowedPrimaryKeysSafe } from "../../contexts/db.entity.js";
+import { Inject } from "../../decorators/index.js";
 import { IOptions } from "../../types/index.js";
 import { RoleManager, UserManager } from "../identity/index.js";
 import { ClaimsIdentityOptions, IdentityOptions } from "../options/index.js";
@@ -20,7 +21,7 @@ export interface IUserClaimsPrincipalFactory<TKey, TUser> {
  * Mirrors ASP.NET Core's UserClaimsPrincipalFactory<TUser> and UserClaimsPrincipalFactory<TUser, TRole>.
  */
 export class UserClaimsPrincipalFactory<
-  TKey extends AllowedPrimaryKeysSafe, 
+  TKey  extends AllowedPrimaryKeysSafe, 
   TUser extends IdentityUser<TKey>, 
   TRole extends IdentityRole<TKey>>
   implements IUserClaimsPrincipalFactory<TKey, TUser> 
@@ -28,7 +29,7 @@ export class UserClaimsPrincipalFactory<
   public userManager : UserManager<TKey, TUser>;
   public roleManager?: RoleManager<TKey, TRole>;
   public options     : ClaimsIdentityOptions;
-
+  
   constructor(userManager: UserManager<TKey, TUser>, options: IOptions<IdentityOptions>);
   constructor(userManager: UserManager<TKey, TUser>, roleManager: RoleManager<TKey, TRole>, options: IOptions<IdentityOptions>);
   constructor(userManager: UserManager<TKey, TUser>, arg2: RoleManager<TKey, TRole> | IOptions<IdentityOptions>, arg3?: IOptions<IdentityOptions>) {

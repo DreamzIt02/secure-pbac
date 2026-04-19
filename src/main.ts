@@ -1,5 +1,7 @@
-import { App } from "./App.js";
+import { App, AppRole, AppUser } from "./App.js";
 import { appRoutes } from "./App.routes.js";
+import { DbContextOptions } from "./contexts/index.js";
+import { IdentityDbContext, NodeDbContext } from "./core/contexts/index.js";
 import { AuthorizationOptions } from "./core/index.js";
 import { IdentityOptions } from "./core/options/index.js";
 import { ServiceCollection } from "./features/index.js";
@@ -24,6 +26,16 @@ app.configureOptions(AuthorizationOptions, (options: AuthorizationOptions) => {
 app.configureOptions(IdentityOptions, (options: IdentityOptions) => {
     //
     return options;
+});
+
+app.addDbContext(
+    IdentityDbContext as new () => NodeDbContext<AppUser, AppRole, string>, 
+    (services: ServiceCollection, options: DbContextOptions) => {
+    services.addScoped(IdentityDbContext, 
+        NodeDbContext as new () => IdentityDbContext<AppUser, AppRole, string>, {
+            0: options
+        })
+    return services;
 });
 
 // First: Register services
@@ -53,4 +65,4 @@ app.useAuthentication(); // or usePassportAuthentication
 app.useAuthorization();
 
 // Start server
-app.start(3000);
+app.start(4000);

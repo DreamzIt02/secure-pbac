@@ -2,9 +2,14 @@
 // Here’s a simple example using a bearer token:
 
 import { NextFn } from "./types.js";
-import { IdentityUser } from "../core/types/index.js";
+import { IdentityRole, IdentityUser } from "../core/types/index.js";
 import { HttpContext } from "../http/index.js";
 import { ArgumentNullThrowHelper } from "../types/exception.js";
+import { RoleManager, UserManager } from "../core/identity/index.js";
+import { AuthorizeRoleEnum, SiteRole } from "../roles/index.js";
+import { UserClaimsPrincipalFactory } from "../core/extensions/index.js";
+import { IdentityOptions } from "../core/options/index.js";
+import { AuthorizeClaimEnum, Claim, SiteClaim } from "../claims/index.js";
 
 export async function useAuthentication(
   ctx: HttpContext,
@@ -26,15 +31,36 @@ export async function useAuthentication(
   try {
     // Example: parse JWT payload
     const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64").toString());
-
-    const user = new IdentityUser();
-    user.id = payload.sub ?? null;
+    const userId = payload.sub ?? null;
     
-    if (user.id) {
-      // const factory = new UserClaimsPrincipalFactory();
-      // factory.createAsync(user).then((User: ClaimsPrincipal) => {
-      //   (req as any).user = User;
-      // })
+    if (userId) {
+      const identityOptions = (ctx.items.get(IdentityOptions) ?? new IdentityOptions()) as IdentityOptions;
+      const scope = ctx.requestServices.createScope();
+      const userManager = scope.getRequiredService(UserManager);
+      const roleManager = scope.getRequiredService(RoleManager);
+
+      const appUser = new IdentityUser();
+        appUser.userName = "user1";
+        appUser.email = "user1@mail.me";
+
+      const role = SiteRole.authorizeRoleName(AuthorizeRoleEnum.AuthorizeGeneralAdmin);
+      const appRole = new IdentityRole();
+      appRole.name = role;
+
+      const claim = SiteClaim.newClaim(AuthorizeClaimEnum.DepartmentContent) as Claim;
+
+      await roleManager.createAsync(appRole);
+      await userManager.createAsync(appUser);
+      await userManager.addToRoleAsync(appUser, role);
+      await userManager.addClaimAsync(appUser, claim);
+
+      // const dbUser = await userManager.findByIdAsync(userId);
+      const dbUser = await userManager.findByNameAsync(appUser.userName);
+      if (dbUser) {
+        const factory = new UserClaimsPrincipalFactory(userManager, roleManager, { value: identityOptions } );
+        ctx.user = await factory.createAsync(dbUser);
+      }
+
     }
 
     return next();

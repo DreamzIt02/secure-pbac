@@ -2,35 +2,37 @@ import { Claim, ClaimsPrincipal, SiteClaim } from '../../claims/index.js';
 import { AuthorizeClaimEnum, AuthorizeClaimTypeEnum, AuthorizeClaimPriorityEnum } from '../../claims/index.js';
 import { AllowedPrimaryKeysSafe } from '../../contexts/index.js';
 import { IdentityDbContext } from '../../core/contexts/index.js';
-import { ILookupNormalizer, IPasswordHasher, PasswordHasher } from '../../core/extensions/index.js';
+import { ILookupNormalizer, IPasswordHasher, LookupNormalizer, PasswordHasher } from '../../core/extensions/index.js';
 import { AsyncLocalUserStore, UserStore } from '../../core/extensions/user-stores/index.js';
 import { IdentityError, IdentityErrorDescriber, IdentityResult, UserManager } from '../../core/identity/index.js';
 import { IdentityOptions } from '../../core/options/index.js';
 import { IdentityRole, IdentityUser } from '../../core/types/index.js';
-import { IPasswordValidator, IUserValidator } from '../../core/validators/index.js';
+import { IPasswordValidator, IUserValidator, PasswordValidator, UserValidator } from '../../core/validators/index.js';
+import { Inject } from '../../decorators/index.js';
 import { tryParseEnum } from '../../types/enums.js';
 import { IdentityErrorCode } from '../../types/error.codes.js';
 import { IOptions } from '../../types/index.js';
 import { PriorManagers, SiteManager } from '../site.manager.js';
 
-export class UserManager1<TKey extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey>> extends UserManager<TKey, TUser> implements Disposable {
+export class UserManager1<TKey extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey>>
+  extends UserManager<TKey, TUser> implements Disposable {
   // protected store         : UserStore<IdentityUser, IdentityRole, string, IdentityContext>;
   // protected passwordHasher: IPasswordHasher<TUser>;
   // protected userValidators: IUserValidator<TUser>[] = [];
   // protected passwordValidators: IPasswordValidator<TUser>[] = [];
 
   constructor(
-    store: UserStore<TUser, IdentityRole<TKey>, TKey, IdentityDbContext<TUser, IdentityRole<TKey>, TKey>> =
+    @Inject(UserStore) store: UserStore<TUser, IdentityRole<TKey>, TKey, IdentityDbContext<TUser, IdentityRole<TKey>, TKey>> =
             new AsyncLocalUserStore(IdentityDbContext as new () => IdentityDbContext<TUser, IdentityRole<TKey>, TKey>,
               IdentityUser as new () => TUser, IdentityRole as new () => IdentityRole<TKey>),
-    passwordHasher     : IPasswordHasher<TUser>        = new PasswordHasher(),
-    userValidators     : IUserValidator<TKey, TUser>[]       = [],
-    passwordValidators : IPasswordValidator<TKey, TUser>[]   = [],
-    keyNormalizer      : ILookupNormalizer,
-    errorDescriber     : IdentityErrorDescriber,
-    optionsAccessor    : IOptions<IdentityOptions>,
+    @Inject(PasswordHasher) passwordHasher: IPasswordHasher<TUser>              = new PasswordHasher(),
+    @Inject(UserValidator) userValidators : IUserValidator<TKey, TUser>[]       = [],
+    @Inject(PasswordValidator) passwordValidators: IPasswordValidator<TKey, TUser>[]   = [],
+    @Inject(LookupNormalizer) keyNormalizer: ILookupNormalizer,
+    errorDescriber                        : IdentityErrorDescriber,
+    optionsAccessor                       : IOptions<IdentityOptions>,
   ) {
-    super(store, optionsAccessor, passwordHasher, userValidators, passwordValidators, keyNormalizer, errorDescriber)
+    super(store, passwordHasher, userValidators, passwordValidators, keyNormalizer, errorDescriber, optionsAccessor)
   }
 
   async hasClaimAsync(user: TUser, claim: Claim): Promise<boolean> {
