@@ -14,11 +14,11 @@ import { IdentityOptions } from "./core/options/index.js";
 import { TOKENS } from "./App.tokens.js";
 import { ILookupNormalizer, IPasswordHasher, LookupNormalizer, PasswordHasher } from "./core/extensions/index.js";
 import { IPasswordValidator, IRoleValidator, IUserValidator, PasswordValidator, RoleValidator, UserValidator } from "./core/validators/index.js";
-import { HttpContext, HttpContextAccessor, RequestHandler, RequestParams } from "./http/index.js";
+import { HttpContext, HttpContextAccessor, RequestHandler, RequestMeta, RequestParams } from "./http/index.js";
 import { Middleware, NextFn } from "./middlewares/types.js";
 import { IServiceProvider, ServiceCollection } from "./features/index.js";
-import { RouteCollection } from "./routing/index.js";
-import { IRouteProvider, RouteResolution } from "./routing/types.js";
+import { invokeWithBindings, RouteCollection } from "./routing/index.js";
+import { IRouteProvider } from "./routing/types.js";
 
 // ### Using `Reflect`
 
@@ -43,8 +43,8 @@ import { IRouteProvider, RouteResolution } from "./routing/types.js";
 // ```
 
 export abstract class AppContext extends AuthorizationExtensions {
-    protected static readonly PROVIDER: IServiceProvider = null!;
-    protected static readonly ROUTES  : IRouteProvider   = null!;
+    private static readonly PROVIDER: IServiceProvider = null!;
+    private static readonly ROUTES  : IRouteProvider   = null!;
 
     private middlewares!   : Middleware[];
     private routing!       : boolean;
@@ -200,12 +200,17 @@ export abstract class AppContext extends AuthorizationExtensions {
         this.middlewares.push(
             async (ctx: HttpContext, next: NextFn) => {
                 // Resolve route Handler and params
-                const resolution = AppContext.ROUTES.resolve(ctx.request);
+                const resolution = await AppContext.ROUTES.resolve(ctx.request);
 
                 if (resolution) {
-                    const { handler, params } = resolution;
-                    ctx.items.set(RequestHandler, handler);
-                    ctx.items.set(RequestParams, params);
+                    const requestParams = new RequestParams(resolution.headers, resolution.routeParams, resolution.queryParams);
+                    const requestMeta   = new RequestMeta(resolution.method, resolution.template);
+                    //
+                    ctx.items.set(RequestParams,  requestParams);
+                    ctx.items.set(RequestMeta,    requestMeta);
+                    ctx.items.set(RequestHandler, async (...args: any[]) => {
+                        return invokeWithBindings(resolution.handler, resolution.routeName, resolution);
+                    });
                 }
                 await next()
             }
@@ -306,24 +311,23 @@ export abstract class AppContext extends AuthorizationExtensions {
             {
                 const handler = context.items.get(RequestHandler);
                 if (handler && typeof handler === "function") {
-                    const params = context.items.get(RequestParams) ?? {};
-                    const result = handler(...Object.values(params));
+                    const result = await handler('GET RESULT');
 
                     // If handler returned something, write it to the response
                     if (result !== undefined && result !== null) {
-                    if (typeof result === "string") {
-                        context.response.end(result);
-                    } else if (typeof result === "object") {
-                        context.response.setHeader("Content-Type", "application/json");
-                        context.response.end(JSON.stringify(result));
+                        if (typeof result === "string") {
+                            context.response.end(result);
+                        } else if (typeof result === "object") {
+                            context.response.setHeader("Content-Type", "application/json");
+                            context.response.end(JSON.stringify(result));
+                        } else {
+                            context.response.end(String(result));
+                        }
                     } else {
-                        context.response.end(String(result));
-                    }
-                    } else {
-                    // If handler returned nothing, ensure response is closed
-                    if (!context.response.writableEnded) {
-                        context.response.end();
-                    }
+                        // If handler returned nothing, ensure response is closed
+                        if (!context.response.writableEnded) {
+                            context.response.end();
+                        }
                     }
                 } else {
                     context.response.statusCode = 404;

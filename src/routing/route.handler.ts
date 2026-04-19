@@ -5,7 +5,8 @@ export class RouteHandler {
     public readonly method  : string,
     public readonly template: string,
     public readonly handler : HandlerFn,
-    public readonly metadata: Record<string, any> = {}
+    public readonly routeName: string,
+    public readonly metadata: Record<string, any>,
   ) {
     if (!template.startsWith("/")) {
       template = "/" + template;
@@ -14,4 +15,5 @@ export class RouteHandler {
       throw new Error("HTTP method is required");
     }
   }
+  
 }
