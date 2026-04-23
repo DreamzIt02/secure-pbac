@@ -25,14 +25,14 @@ export class UserManager1<TKey extends AllowedPrimaryKeysSafe, TUser extends Ide
     @Inject(UserStore) store: UserStore<TUser, IdentityRole<TKey>, TKey, IdentityDbContext<TUser, IdentityRole<TKey>, TKey>> =
             new AsyncLocalUserStore(IdentityDbContext as new () => IdentityDbContext<TUser, IdentityRole<TKey>, TKey>,
               IdentityUser as new () => TUser, IdentityRole as new () => IdentityRole<TKey>),
-    @Inject(PasswordHasher) passwordHasher: IPasswordHasher<TUser>              = new PasswordHasher(),
-    @Inject(UserValidator) userValidators : IUserValidator<TKey, TUser>[]       = [],
-    @Inject(PasswordValidator) passwordValidators: IPasswordValidator<TKey, TUser>[]   = [],
-    @Inject(LookupNormalizer) keyNormalizer: ILookupNormalizer,
-    errorDescriber                        : IdentityErrorDescriber,
-    optionsAccessor                       : IOptions<IdentityOptions>,
+    @Inject(PasswordHasher) passwordHasher: IPasswordHasher<TUser>          = new PasswordHasher(),
+    @Inject([UserValidator]) userValidators : IUserValidator<TKey, TUser>[] = [],
+    @Inject([PasswordValidator]) passwordValidators: IPasswordValidator<TKey, TUser>[]   = [],
+    @Inject(LookupNormalizer) keyNormalizer : ILookupNormalizer,
+    @Inject(IdentityOptions) optionsAccessor: IOptions<IdentityOptions>,
+    errorDescriber                          : IdentityErrorDescriber,
   ) {
-    super(store, passwordHasher, userValidators, passwordValidators, keyNormalizer, errorDescriber, optionsAccessor)
+    super(store, passwordHasher, userValidators, passwordValidators, keyNormalizer, optionsAccessor, errorDescriber)
   }
 
   async hasClaimAsync(user: TUser, claim: Claim): Promise<boolean> {

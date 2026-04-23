@@ -5,6 +5,7 @@ import { AuthorizationOptions } from "./authorization.options.js";
 import { IOptions } from "../types/index.js";
 import { ArgumentNullThrowHelper } from "../types/exception.js";
 import type { IAuthorizationPolicyBuilderConstructor } from "./types/index.js";
+import { Inject } from "../decorators/index.js";
 
 /**
  * A type which can provide an AuthorizationPolicy for a particular name.
@@ -62,7 +63,7 @@ export class DefaultAuthorizationPolicyProvider implements IAuthorizationPolicyP
    * @param options The options used to configure this instance.
    */
   constructor(
-    options: IOptions<AuthorizationOptions>,
+    @Inject(AuthorizationOptions) options: IOptions<AuthorizationOptions>,
   ) {
     ArgumentNullThrowHelper.throwIfNull(options);
     

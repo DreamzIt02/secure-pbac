@@ -4,7 +4,6 @@ import { CancellationToken } from "../types/cancellation.js";
 import { DbSet } from "./db.set.js";
 import { AllowedPrimaryKeys, BaseEntity, isAbstractEntity, PrimaryKey } from "./db.entity.js";
 import { IQueryProvider } from "../linq/index.js";
-import { IdentityOptions } from "../core/options/index.js";
 
 // Example entities
 export class User extends BaseEntity {
@@ -29,8 +28,8 @@ export class DbConnection {
 
 export class DbContextOptions {
     constructor();
-    constructor(identityOptions: IdentityOptions);
-    constructor(public readonly identityOptions?: IdentityOptions) {
+    constructor(options: DbContextOptions);
+    constructor(public readonly options?: DbContextOptions) {
 
     }
 }
@@ -43,14 +42,14 @@ export class ModelBuilder {
 
 }
 
-export abstract class DbContext {
+export abstract class DbContext<TOptions extends DbContextOptions = DbContextOptions>  {
     protected readonly registry = new Map<Function, PrimaryKey<any>>();
     protected readonly database = new Map<Function, DbSet<any>>();
     protected provider?: IQueryProvider;
     /**
      *
      */
-    constructor(protected readonly options?: DbContextOptions) {
+    constructor(protected readonly options?: TOptions) {
         this.onConfiguring(options);
         this.onModelCreating();
     }

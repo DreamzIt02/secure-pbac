@@ -45,15 +45,19 @@ export class PolicyDefaultAuthorizationRequirement
   ): Promise<void> {
     const httpContext   = HttpContextAccessor.current;
     if (context.user && httpContext) {
-      const scope       = httpContext.requestServices.createScope();
-      const authService = scope.getRequiredService<IAuthorizationService>(AuthorizationService);
+      try {
+        const authService = httpContext.requestServices.getRequiredService<IAuthorizationService>(AuthorizationService);
 
-      const expr        = this.expressionFactory();
-      const evaluator   = new PolicyExpressionEvaluatorFactory(authService);
-      const authorized  = await evaluator.evaluatePolicies(expr, context.user, resource);
+        const expr        = this.expressionFactory();
+        const evaluator   = new PolicyExpressionEvaluatorFactory(authService);
+        const authorized  = await evaluator.evaluatePolicies(expr, context.user, resource);
 
-      if (authorized.succeeded) {
-        context.succeed(requirement);
+        if (authorized.succeeded) {
+          context.succeed(requirement);
+        }
+      }
+      finally {
+        httpContext.requestServices.dispose();      
       }
     }
     return Promise.resolve();

@@ -75,6 +75,7 @@ export class NodeHttpContext extends HttpContextBase {
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.substring("Bearer ".length);
       // FIXME: validate token according to scheme
+      console.log('TOKEN', token)
       const principal = new ClaimsPrincipal([new ClaimsIdentity([], scheme)]);
       const ticket = { principal, properties: { expiresUtc: new Date(Date.now() + 3600 * 1000) } };
       const result = AuthenticateResult.success(ticket as any);

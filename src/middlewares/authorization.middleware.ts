@@ -38,12 +38,15 @@ export function useAuthorization (): Middleware {
         // No decorators — skip authorization
         if (!requirements || isEmpty(requirements)) return next();
         
-        const scope       = ctx.requestServices.createScope();
-        const authService = scope.getRequiredService<IAuthorizationService>(AuthorizationService);
-        const authResult  = await authService.authorizeAsync(User, null, requirements);
+        try {
+          const authService = ctx.requestServices.getRequiredService<IAuthorizationService>(AuthorizationService);
+          const authResult  = await authService.authorizeAsync(User, null, requirements);
 
-        if (authResult.succeeded) return await next();
-
+          if (authResult.succeeded) return await next();
+        } 
+        finally {
+          ctx.requestServices.dispose();      
+        }
         return ctx.response.forbidden();
 
     } catch (error) {

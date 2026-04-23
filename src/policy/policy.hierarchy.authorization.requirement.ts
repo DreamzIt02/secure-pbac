@@ -52,16 +52,20 @@ export class PolicyHierarchyAuthorizationRequirement<TKey  extends AllowedPrimar
   ): Promise<void> {
     const httpContext   = HttpContextAccessor.current;
     if (context.user && httpContext) {
-      const scope       = httpContext.requestServices.createScope();
-      const authService = scope.getRequiredService<IAuthorizationService>(AuthorizationService);
-      const policyService = scope.getRequiredService<IPolicyAuthorizationService<any, any>>(PolicyAuthorizationService);
-      
-      const expr        = this.expressionFactory();
-      const evaluator   = new PolicyExpressionEvaluatorFactory(authService, policyService);
-      const authorized  = await evaluator.evaluateHierarchy(expr, context.user, resource, requirement.policies);
+      try {
+        const authService = httpContext.requestServices.getRequiredService<IAuthorizationService>(AuthorizationService);
+        const policyService = httpContext.requestServices.getRequiredService<IPolicyAuthorizationService<any, any>>(PolicyAuthorizationService);
+        
+        const expr        = this.expressionFactory();
+        const evaluator   = new PolicyExpressionEvaluatorFactory(authService, policyService);
+        const authorized  = await evaluator.evaluateHierarchy(expr, context.user, resource, requirement.policies);
 
-      if (authorized.succeeded) {
-        context.succeed(requirement);
+        if (authorized.succeeded) {
+          context.succeed(requirement);
+        }
+      }
+      finally {
+        httpContext.requestServices.dispose();      
       }
     }
     return Promise.resolve();

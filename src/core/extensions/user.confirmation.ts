@@ -16,6 +16,12 @@ export interface IUserConfirmation<TKey extends AllowedPrimaryKeysSafe, TUser ex
     isConfirmedAsync(manager: IUserManager<TKey, TUser>, user: TUser): Promise<boolean>;
 }
 
+// export class UserConfirmation<TKey extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey>> implements IUserConfirmation<TKey, TUser> {
+//     isConfirmedAsync(manager: IUserManager<TKey, TUser>, user: TUser): Promise<boolean> {
+//         throw new Error("Method not implemented.");
+//     }
+// }
+
 /// <summary>
 /// Default implementation of <see cref="IUserConfirmation{TUser}"/>.
 /// </summary>

@@ -1,8 +1,16 @@
 
 import { AllowedPrimaryKeysSafe, DbContext, DbContextOptions, DbContextOptionsBuilder, DbSet, ModelBuilder, PrimaryKey } from "../../contexts/index.js";
 import { CancellationToken } from "../../types/cancellation.js";
-import { IdentitySchemaVersions, StoreOptions, Version } from "../options/index.js";
+import { IdentityOptions, IdentitySchemaVersions, StoreOptions, Version } from "../options/index.js";
 import { IdentityUser, IdentityUserClaim, IdentityUserLogin, IdentityUserToken } from "../types/index.js";
+
+export class IdentityDbContextOptions extends DbContextOptions {
+    constructor();
+    constructor(identityOptions: IdentityOptions);
+    constructor(public readonly identityOptions?: IdentityOptions) {
+      super();
+    }
+}
 
 /// <summary>
 /// Base class for the Entity Framework database context used for identity.
@@ -19,7 +27,7 @@ export abstract class IdentityUserContext<
   TUserClaim extends IdentityUserClaim<TKey> = IdentityUserClaim<TKey>,
   TUserLogin extends IdentityUserLogin<TKey> = IdentityUserLogin<TKey>,
   TUserToken extends IdentityUserToken<TKey> = IdentityUserToken<TKey>,
-> extends DbContext {
+> extends DbContext<IdentityDbContextOptions> {
     public constructor();
     public constructor(options:  DbContextOptions);
     public constructor(options?: DbContextOptions) {

@@ -99,7 +99,7 @@ export class DefaultPolicyAuthorizationService<
         @Inject(AuthorizationService) private readonly authService: IAuthorizationService,
         @Inject(UserManager1) private readonly userManager        : UserManager1<TKey, TUser>,
         @Inject(RoleManager)  private readonly roleManager        : RoleManager<TKey, TRole>,
-        private readonly options                                  : IOptions<IdentityOptions>,
+        @Inject(IdentityOptions)  private readonly options        : IOptions<IdentityOptions>,
     ) {
     }
     authorizeAsync(User: ClaimsPrincipal, policies: PolicyEnum[], checkDefault: boolean): Promise<AuthorizationResult>;

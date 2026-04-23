@@ -35,36 +35,41 @@ export async function useAuthentication(
     
     if (userId) {
       const identityOptions = (ctx.items.get(IdentityOptions) ?? new IdentityOptions()) as IdentityOptions;
-      const scope = ctx.requestServices.createScope();
-      const userManager = scope.getRequiredService(UserManager);
-      const roleManager = scope.getRequiredService(RoleManager);
+      try {
+        const userManager = ctx.requestServices.getRequiredService(UserManager);
+        const roleManager = ctx.requestServices.getRequiredService(RoleManager);
 
-      const appUser = new IdentityUser();
-        appUser.userName = "user1";
-        appUser.email = "user1@mail.me";
+        const appUser = new IdentityUser();
+          appUser.userName = "user1";
+          appUser.email = "user1@mail.me";
 
-      const role = SiteRole.authorizeRoleName(AuthorizeRoleEnum.AuthorizeGeneralAdmin);
-      const appRole = new IdentityRole();
-      appRole.name = role;
+        const role = SiteRole.authorizeRoleName(AuthorizeRoleEnum.AuthorizeGeneralAdmin);
+        const appRole = new IdentityRole();
+        appRole.name = role;
 
-      const claim = SiteClaim.newClaim(AuthorizeClaimEnum.DepartmentContent) as Claim;
+        const claim = SiteClaim.newClaim(AuthorizeClaimEnum.DepartmentContent) as Claim;
 
-      await roleManager.createAsync(appRole);
-      await userManager.createAsync(appUser);
-      await userManager.addToRoleAsync(appUser, role);
-      await userManager.addClaimAsync(appUser, claim);
+        await roleManager.createAsync(appRole);
+        await userManager.createAsync(appUser);
+        await userManager.addToRoleAsync(appUser, role);
+        await userManager.addClaimAsync(appUser, claim);
 
-      // const dbUser = await userManager.findByIdAsync(userId);
-      const dbUser = await userManager.findByNameAsync(appUser.userName);
-      if (dbUser) {
-        const factory = new UserClaimsPrincipalFactory(userManager, roleManager, { value: identityOptions } );
-        ctx.user = await factory.createAsync(dbUser);
+        // const dbUser = await userManager.findByIdAsync(userId);
+        const dbUser = await userManager.findByNameAsync(appUser.userName);
+        if (dbUser) {
+          const factory = new UserClaimsPrincipalFactory(userManager, roleManager, { value: identityOptions } );
+          ctx.user = await factory.createAsync(dbUser);
+        }
+      } 
+      finally {
+        ctx.requestServices.dispose();
       }
 
     }
 
     return next();
   } catch (err) {
+    console.log('ERROR ', err)
     ctx.response.statusCode = 401;
     ctx.response.end("Invalid token");
   }

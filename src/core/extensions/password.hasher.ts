@@ -1,5 +1,6 @@
 import crypto from "crypto";
-import { IdentityUser, PasswordVerificationResult } from "../types/index.js";
+import { PasswordVerificationResult } from "../types/index.js";
+import { Inject } from "../../decorators/index.js";
 
 /**
  * Options for configuring the PasswordHasher.
@@ -68,7 +69,7 @@ export class PasswordHasher<TUser> implements IPasswordHasher<TUser> {
      * Creates a new instance of PasswordHasher.
      * @param optionsAccessor The options for this instance.
      */
-    constructor(optionsAccessor?: PasswordHasherOptions) {
+    constructor(@Inject(PasswordHasherOptions) optionsAccessor?: PasswordHasherOptions) {
         const options = optionsAccessor ?? PasswordHasher.defaultOptions;
         this.compatibilityMode = options.compatibilityMode;
 

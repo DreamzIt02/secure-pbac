@@ -13,21 +13,22 @@ import {
 import { IdentityRole, IdentityUser } from "./core/types/index.js";
 import { AuthorizationExtensions, DefaultPolicyAuthorizationService, IPolicyAuthorizationService, PolicyAuthorizationService } from "./policy/index.js";
 import { AllowedPrimaryKeysSafe, DbContext, DbContextOptions } from "./contexts/index.js";
-import { AuthenticationOptions } from "./http/authentication/index.js";
+import { AuthenticationOptions, AuthenticationScheme, AuthenticationSchemeProvider, IAuthenticationSchemeProvider } from "./http/authentication/index.js";
 import { IdentityOptions } from "./core/options/index.js";
-import { ILookupNormalizer, IPasswordHasher, IUserClaimsPrincipalFactory, LookupNormalizer, PasswordHasher, UserClaimsPrincipalFactory } from "./core/extensions/index.js";
+import { ILookupNormalizer, IPasswordHasher, LookupNormalizer, PasswordHasher, PasswordHasherOptions } from "./core/extensions/index.js";
 import { IPasswordValidator, IRoleValidator, IUserValidator, PasswordValidator, RoleValidator, UserValidator } from "./core/validators/index.js";
 import { HttpContext, HttpContextAccessor, RequestHandler, RequestMeta, RequestParams, ResponseHandler } from "./http/index.js";
 import { Middleware, NextFn } from "./middlewares/types.js";
-import { IServiceProvider, ServiceCollection } from "./features/index.js";
+import { IServiceProvider, ServiceCollection, ServiceLifetime } from "./features/index.js";
 import { invokeWithBindings, RouteCollection } from "./routing/index.js";
 import { IRouteProvider } from "./routing/types.js";
 import { IdentityDbContext } from "./core/contexts/index.js";
 import { UserStore } from "./core/extensions/user-stores/index.js";
 import { RoleStore } from "./core/extensions/role-stores/index.js";
-import { IdentityErrorDescriber, RoleManager, UserManager } from "./core/identity/index.js";
+import { IdentityErrorDescriber, RoleManager, SignInManager, UserManager } from "./core/identity/index.js";
 import { UserManager1 } from "./policy/identity/index.js";
 import { IHttpContextAccessor } from "./http/types.js";
+import { Options } from "./types/options.js";
 
 // ### Using `Reflect`
 
@@ -54,6 +55,7 @@ import { IHttpContextAccessor } from "./http/types.js";
 export abstract class AppContext extends AuthorizationExtensions {
     private static readonly PROVIDER: IServiceProvider = null!;
     private static readonly ROUTES  : IRouteProvider   = null!;
+    private readonly schemes: Map<string, AuthenticationScheme> = new Map();
 
     private middlewares!   : Middleware[];
     private routing!       : boolean;
@@ -73,8 +75,6 @@ export abstract class AppContext extends AuthorizationExtensions {
         super(authorizationOptions)
         this.middlewares = [];
     }
-    // protected abstract registerServices: (callback: (services: ServiceCollection) => ServiceCollection) => void;
-    // protected abstract registerRoutes  : (callback: (routes: RouteCollection)     => RouteCollection) => void;
 
     /**
      * Generic configureOptions method
@@ -86,7 +86,7 @@ export abstract class AppContext extends AuthorizationExtensions {
         callback: (opts: T) => T
     ): void {
         if (this.register_service)
-            throw new Error(`Pipeline must configure options before registerServices()`);
+            throw new Error(`Pipeline must configure options before configureServices()`);
 
         if (ctor instanceof AuthenticationOptions) {
             (this.authenticationOptions as any) = callback(this.authenticationOptions as T);
@@ -99,38 +99,45 @@ export abstract class AppContext extends AuthorizationExtensions {
         }
     }
 
-    public registerServices = (callback: (services: ServiceCollection) => ServiceCollection) => {
+    public configureSchemes(callback: (schemes: Map<string, AuthenticationScheme>) => Map<string, AuthenticationScheme>): void {
+        // Cast any, to omit readonly
+        (this.schemes as any) = callback(this.schemes);
+    }
+
+    /**
+     * Generic configureServices method
+     * Allows configuring any of the services types (Authentication, Authorization, Identity, etc.)
+     */
+    public configureServices = (callback: (services: ServiceCollection) => ServiceCollection) => {
         //
         this.register_service = true;
         // 
-        this.registerServicesDefault((services: ServiceCollection) => {
-            return services;
-        });
+        this.registerServicesDefault();
         // Register any other Service of App
 
-        // Merge services registered in Caller
+        // Merge (can override) services registered by Caller
         callback(this.services);
         // Cast any, to omit readonly
         (AppContext.PROVIDER as any) = this.services.build();
     }
 
-    public registerRoutes = (callback: (routes: RouteCollection) => RouteCollection) => {
+    public configureRoutes = (callback: (routes: RouteCollection) => RouteCollection) => {
         // 
-        this.registerRoutesDefault((routes: RouteCollection) => {
-            return routes;
-        });
+        this.registerRoutesDefault();
         // Register any other Route of App
 
-        // Merge routes registered in Caller
+        // Merge (can override) routes registered by Caller
         callback(this.routes);
         // Cast any, to omit readonly
         (AppContext.PROVIDER as any) = this.routes.build();
     }
     
-    private registerServicesDefault = (callback: (services: ServiceCollection) => ServiceCollection) => {
-        this.services.addSingleton(HttpContextAccessor, HttpContextAccessor as new ()    => IHttpContextAccessor, { });
+    private registerServicesDefault = () => {
+        this.services.addSingleton(HttpContextAccessor, HttpContextAccessor as new () => IHttpContextAccessor, { });
 
         // Register default services of AppContext
+        this.services.addFactory(PasswordHasherOptions, () => new Options(new PasswordHasherOptions()) as any, ServiceLifetime.Singleton);
+
         this.services.addSingleton(PasswordHasher,     PasswordHasher as new ()    => IPasswordHasher<any>, { });
         this.services.addSingleton(PasswordValidator,  PasswordValidator as new () => IPasswordValidator<any, any>, { });
         this.services.addSingleton(UserValidator,      UserValidator as new ()     => IUserValidator<any, any>, { });
@@ -139,28 +146,24 @@ export abstract class AppContext extends AuthorizationExtensions {
         //
         this.services.addSingleton(MeterFactory,         DefaultMeterFactory as new () => IMeterFactory, { });
         this.services.addSingleton(AuthorizationMetrics, AuthorizationMetrics as any as new () => IAuthorizationMetrics, { });
-        //
-        callback(this.services);
+
         // Cast any, to omit readonly
         (AppContext.PROVIDER as any) = this.services.build();
     }
 
-    private registerRoutesDefault = (callback: (routes: RouteCollection) => RouteCollection) => {
-        // The registerRoutesDefault() must at the second from the top of pipeline
-        callback(this.routes);
+    private registerRoutesDefault = () => {
         // Cast any, to omit readonly
         (AppContext.ROUTES as any) = this.routes.build();
     }
 
-    private registerIdentityServices<TKey extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey>>() {
-        if (!AppContext.PROVIDER) {
-            throw new Error("Pipeline must call registerServices() first");
-        }
+    private registerAuthorizationServices<TKey extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey>>() {
+        if (!this.register_service)
+            throw new Error("Pipeline must call configureServices() first");
+
         // Cast any to enforce readonly
-        const options = { value: this.authorizationOptions };
         //
         this.services.addSingleton(AuthorizationPolicyProvider,
-            DefaultAuthorizationPolicyProvider as any as new () => IAuthorizationPolicyProvider, { 0: options });
+            DefaultAuthorizationPolicyProvider as any as new () => IAuthorizationPolicyProvider, { });
         this.services.addScoped(AuthorizationHandlerProvider,
             DefaultAuthorizationHandlerProvider as any as new () => IAuthorizationHandlerProvider, { 0: [] });
         this.services.addSingleton(AuthorizationHandlerContextFactory,
@@ -169,41 +172,40 @@ export abstract class AppContext extends AuthorizationExtensions {
             DefaultAuthorizationEvaluator as new () => IAuthorizationEvaluator, { });
 
         this.services.addScoped(AuthorizationService,
-            DefaultAuthorizationService as any as new () => IAuthorizationService, { 4: options });
+            DefaultAuthorizationService as any as new () => IAuthorizationService, { });
         this.services.addScoped(AuthorizationService,
-            DefaultAuthorizationServiceImpl as any as new () => IAuthorizationService, { 4: options });
+            DefaultAuthorizationServiceImpl as any as new () => IAuthorizationService, { });
 
         // Cast any, to omit readonly
         (AppContext.PROVIDER as any) = this.services.build();
     }
 
     private registerPolicyServices<TKey extends AllowedPrimaryKeysSafe, TUser extends IdentityUser<TKey>>() {
-        if (!AppContext.PROVIDER) {
-            throw new Error("Pipeline must call registerIdentityServices() first");
-        }
+        if (!this.register_service)
+            throw new Error("Pipeline must call registerAuthorizationServices() first");
 
-        const options = { value: this.identityOptions };
         //
         // Fallback to add identity services
         this.services.addScoped(PolicyAuthorizationService,
-            DefaultPolicyAuthorizationService as any as new () => IPolicyAuthorizationService<TKey, TUser>, { 3: options });
+            DefaultPolicyAuthorizationService as any as new () => IPolicyAuthorizationService<TKey, TUser>, { });
 
         // Cast any, to omit readonly
         (AppContext.PROVIDER as any) = this.services.build();
     }
 
-    private registerUserServices<
+    private registerIdentityServices<
         TKey  extends AllowedPrimaryKeysSafe, 
         TUser extends IdentityUser<TKey>, 
         TRole extends IdentityRole<TKey>, 
         TContext extends DbContext,
         >() {
         if (!AppContext.PROVIDER) {
-            throw new Error("Pipeline must call registerServices() first");
+            throw new Error("Pipeline must call configureServices() first");
         }
         // Cast any to enforce readonly
-        const options = { value: this.identityOptions };
         const errorDescriber = new IdentityErrorDescriber();
+        //
+        this.services.addFactory(IdentityOptions, () => new Options(this.identityOptions) as any, ServiceLifetime.Singleton);
         //
         this.services.addScoped(UserStore,
             UserStore as any as new () => UserStore<TUser, TRole, TKey, TContext>, { 1: IdentityUser, 2: IdentityRole });
@@ -211,16 +213,21 @@ export abstract class AppContext extends AuthorizationExtensions {
             RoleStore as any as new () => RoleStore<TRole, TKey, TContext>, { });
         //
         this.services.addScoped(UserManager,
-            UserManager as any as new () => UserManager<TKey, TUser>, {6: errorDescriber, 7: options });
+            UserManager as any as new () => UserManager<TKey, TUser>, { 7: errorDescriber });
         this.services.addScoped(UserManager1,
-            UserManager1 as any as new () => UserManager1<TKey, TUser>, { 6: errorDescriber, 7: options });
+            UserManager1 as any as new () => UserManager1<TKey, TUser>, { 7: errorDescriber });
 
         this.services.addScoped(RoleManager,
             RoleManager as any as new () => RoleManager<TKey, TRole>, { 3: errorDescriber });
 
+        // this.services.addScoped(UserConfirmation,
+        //     DefaultUserConfirmation as any as new () => IUserConfirmation<TKey, TUser>, { 2: options });
         // this.services.addScoped(UserClaimsPrincipalFactory,
         //     UserClaimsPrincipalFactory as any as new () => IUserClaimsPrincipalFactory<TKey, TUser>, { 2: options });
-            
+
+        this.services.addScoped(SignInManager,
+            SignInManager as any as new () => SignInManager<TKey, TUser>, { });
+
         // Cast any, to omit readonly
         (AppContext.PROVIDER as any) = this.services.build();
     }
@@ -231,7 +238,9 @@ export abstract class AppContext extends AuthorizationExtensions {
         
         if (typeof callback === "function") {
             callback(this.services, this.contextOptions);
-           
+            //
+            // this.services.addSingleton(Options<DbContextOptions>, Options as new () => Options<DbContextOptions>, { 0: this.contextOptions });
+            this.services.addFactory(DbContextOptions, () => new Options(this.contextOptions) as any, ServiceLifetime.Singleton);
             // This ensures that identity_context is added to app context
             if (new context() instanceof IdentityDbContext)
                 this.identity_context = true;
@@ -239,35 +248,41 @@ export abstract class AppContext extends AuthorizationExtensions {
             // Cast any, to omit readonly
             (AppContext.PROVIDER as any) = this.services.build();
         }
-
     }
 
-    addAuthentication(
-        configureOptions?: (options: AuthenticationOptions) => AuthenticationOptions) {
+    addAuthentication() {
         // This ensures that authorization is added to app context
         this.authentication = true;
-        // Cast any to enforce readonly
-        (this.authenticationOptions as any) = typeof configureOptions === "function" ? configureOptions(this.authenticationOptions) : this.authenticationOptions;
+        //
+        const schemes = this.schemes;
+        //
+        this.services.addFactory(AuthenticationOptions, () => new Options(this.authenticationOptions) as any, ServiceLifetime.Singleton);
+        this.services.addScoped(AuthenticationSchemeProvider,
+            AuthenticationSchemeProvider as any as new () => IAuthenticationSchemeProvider, { 1: schemes });
+        
+        // Cast any, to omit readonly
+        (AppContext.PROVIDER as any) = this.services.build();
     }
 
-    addAuthorization(
-        configureOptions?: (options: AuthorizationOptions) => AuthorizationOptions) {
+    addAuthorization() {
+        if (!this.authentication)
+            throw new Error("Pipeline must call addAuthentication() before addAuthorization()");
+
         // This ensures that authorization is added to app context
         this.authorization = true;
-        // Cast any to enforce readonly
-        (this.authorizationOptions as any) = typeof configureOptions === "function" ? configureOptions(this.authorizationOptions) : this.authorizationOptions;
+        this.services.addFactory(AuthorizationOptions, () => new Options(this.authenticationOptions) as any, ServiceLifetime.Singleton);
         //
-        this.registerIdentityServices();
+        this.registerAuthorizationServices();
         //
         this.registerPolicyServices();
         //
         if (this.identity_context)
-            this.registerUserServices();
+            this.registerIdentityServices();
     }
 
     useRouting() {
         if (!AppContext.ROUTES) {
-            throw new Error("Pipeline must call registerRoutes() before useRouting()");
+            throw new Error("Pipeline must call configureRoutes() before useRouting()");
         }
         this.routing = true;
 
@@ -319,7 +334,10 @@ export abstract class AppContext extends AuthorizationExtensions {
     
     private buildContext(req: IncomingMessage, res: ServerResponse): HttpContext {
         const context = new HttpContext(req, res);
-        context.requestServices = AppContext.PROVIDER;
+        // Create a per-request scope from the root provider
+        const scope = AppContext.PROVIDER.createScope();
+        context.requestServices = scope;
+
         context.items.set(AuthenticationOptions, this.authenticationOptions);
         context.items.set(AuthorizationOptions, this.authorizationOptions);
         context.items.set(IdentityOptions, this.identityOptions);
@@ -336,11 +354,11 @@ export abstract class AppContext extends AuthorizationExtensions {
         ) {
         
         if (!AppContext.PROVIDER) {
-            throw new Error("Pipeline must call registerServices() first");
+            throw new Error("Pipeline must call configureServices() first");
         }
 
         if (!AppContext.ROUTES) {
-            throw new Error("Pipeline must call registerRoutes() second");
+            throw new Error("Pipeline must call configureRoutes() second");
         }
 
         if (!this.routing) {
@@ -387,6 +405,7 @@ export abstract class AppContext extends AuthorizationExtensions {
 
         server.listen(port, () => console.log(`Server running on http://localhost:${port}`));
     }
+
     private runPipeline(context: HttpContext, pipeline: Middleware[]) {
 
         let i = 0;

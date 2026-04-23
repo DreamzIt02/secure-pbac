@@ -6,12 +6,12 @@ import { IHttpContextAccessor } from "../../http/types.js";
 import { DefaultUserConfirmation, IUserClaimsPrincipalFactory, IUserConfirmation, UserClaimsPrincipalFactory } from "../extensions/index.js";
 import { IdentityOptions } from "../options/index.js";
 import { ArgumentNullThrowHelper, InvalidOperationException } from "../../types/exception.js";
-import { ExternalLoginInfo, IdentityRole, IdentityUser } from "../types/index.js";
+import { ExternalLoginInfo, IdentityUser } from "../types/index.js";
 import { EventIds } from "./event_ids.js";
 import { IdentityConstants } from "./identity.constants.js";
 import { IdentityResult } from "./identity.result.js";
 import { SignInResult } from "./signin.result.js";
-import { UserManager } from "./user.manager.js";
+import { UserManager } from "./user.manager.impl.js";
 import { IOptions } from "../../types/index.js";
 import { AllowedPrimaryKeysSafe } from "../../contexts/index.js";
 import { Inject } from "../../decorators/index.js";
@@ -24,9 +24,8 @@ export class SignInManager<TKey extends AllowedPrimaryKeysSafe, TUser extends Id
     private static readonly LoginProviderKey: string = "LoginProvider";
     private static readonly XsrfKey: string = "XsrfId";
 
-    private contextAccessor: IHttpContextAccessor;
-    private schemes: IAuthenticationSchemeProvider;
-    private confirmation: IUserConfirmation<TKey, TUser>;
+    private readonly confirmation: IUserConfirmation<TKey, TUser>;
+    private readonly claimsFactory: IUserClaimsPrincipalFactory<TKey, TUser>;
     private _context?: HttpContext;
     private twoFactorInfo?: TwoFactorAuthenticationInfo<TUser>;
 
@@ -34,23 +33,18 @@ export class SignInManager<TKey extends AllowedPrimaryKeysSafe, TUser extends Id
     /// Creates a new instance of SignInManager{TUser}.
     /// </summary>
     constructor(
-        @Inject(UserManager) public userManager: UserManager<TKey, TUser>,
-        /*@Inject(UserClaimsPrincipalFactory)*/ public claimsFactory: IUserClaimsPrincipalFactory<TKey, TUser>,
-        contextAccessor: IHttpContextAccessor,
-        optionsAccessor: IOptions<IdentityOptions>,
-        schemes: AuthenticationSchemeProvider,
-        confirmation: DefaultUserConfirmation<TKey, TUser>
+        @Inject(UserManager) private readonly userManager: UserManager<TKey, TUser>,
+        @Inject(HttpContextAccessor) private readonly contextAccessor: IHttpContextAccessor,
+        @Inject(AuthenticationSchemeProvider) private readonly schemes: IAuthenticationSchemeProvider,
+        @Inject(IdentityOptions) readonly optionsAccessor: IOptions<IdentityOptions>,
     ) {
         ArgumentNullThrowHelper.throwIfNull(userManager);
         ArgumentNullThrowHelper.throwIfNull(contextAccessor);
-        ArgumentNullThrowHelper.throwIfNull(claimsFactory);
+        ArgumentNullThrowHelper.throwIfNull(schemes);
 
-        this.userManager = userManager;
-        this.contextAccessor = contextAccessor;
-        this.claimsFactory = claimsFactory;
         this.options = optionsAccessor?.value ?? new IdentityOptions();
-        this.schemes = schemes;
-        this.confirmation = confirmation;
+        this.confirmation  = new DefaultUserConfirmation();
+        this.claimsFactory = new UserClaimsPrincipalFactory(userManager, { value: this.options });
     }
 
     /// <summary>
@@ -386,7 +380,7 @@ export class SignInManager<TKey extends AllowedPrimaryKeysSafe, TUser extends Id
         try {
             const principal = await this.storeRememberClient(user);
             await this.context.signInAsync(
-                IdentityConstants.TwoFactorRememberMeScheme, principal, 
+                IdentityConstants.TwoFactorRememberMeScheme, principal,
                 new AuthenticationProperties({ isPersistent: true.toString() }));
         } catch (ex) {
             throw ex;
@@ -687,7 +681,7 @@ export class SignInManager<TKey extends AllowedPrimaryKeysSafe, TUser extends Id
                 if (await this.schemes.getSchemeAsync(IdentityConstants.TwoFactorUserIdScheme) != null) {
                     const userId = await this.userManager.getUserIdAsync(user);
                     await this.context.signInAsync(
-                        IdentityConstants.TwoFactorUserIdScheme, 
+                        IdentityConstants.TwoFactorUserIdScheme,
                         SignInManager.storeTwoFactorInfo(userId, loginProvider),
                         new AuthenticationProperties({ isPersistent: isPersistent.toString() }));
                 }

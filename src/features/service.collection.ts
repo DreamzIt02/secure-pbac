@@ -49,7 +49,7 @@ export class ServiceCollection {
     //
     token = getInjectableToken(token);
 
-    this.descriptors.push({ token, factory, lifetime });
+    this.descriptors.push({ token: token, factory: factory, lifetime: lifetime });
   }
 
   /**

@@ -14,7 +14,7 @@
 // * `@Inject()` metadata (`getInjectTokens`)
 // * `descriptor.deps`
 // No fallback. No magic.
-import { getInjectableToken, getInjectTokens, Token } from "../decorators/index.js";
+import { getInjectableToken, getInjectToken, getInjectTokens, Token } from "../decorators/index.js";
 
 // # 🧩 Step o: Define Global Service Token Factory
 // App.tokens.ts
@@ -39,7 +39,7 @@ export interface ServiceDescriptor<T = any> {
   implementation?: new (...args: any[]) => T;
   factory?: Factory<T>;
   deps?: ParamDescriptor; // explicit dependency values
-  instance?: T; // for singleton
+  // instance?: T; // for singleton
 }
 
 // # 🧠 Step 6: IServiceProvider Interface
@@ -48,6 +48,7 @@ export interface IServiceProvider {
   getService<T>(token: Token<T>,          lifetime?: ServiceLifetime): T | null;
   getRequiredService<T>(token: Token<T>,  lifetime?: ServiceLifetime): T;
   createScope(): IServiceProvider;
+  dispose(): void;
 }
 
 // # 🔥 Step 8: Core Container (Lazy + Scoped)
@@ -72,15 +73,16 @@ export class ServiceProvider implements IServiceProvider {
 
   createScope(): IServiceProvider {
     return new ServiceProvider(this.descriptors, this);
+    //```ts
+    // const scope = provider.createScope();
+    // try {
+    //   // run pipeline
+    // } finally {
+    //   scope.dispose();
+    // }
+    // ```
   }
-  //```ts
-  // const scope = provider.createScope();
-  // try {
-  //   // run pipeline
-  // } finally {
-  //   scope.dispose();
-  // }
-  // ```
+
   dispose() {
     for (const instance of this.scopedCache.values()) {
       if (typeof instance?.dispose === 'function') {
@@ -214,18 +216,19 @@ export class ServiceProvider implements IServiceProvider {
     const ctor = descriptor.implementation!;
     // Read @Inject metadata (index → token mapping)
     const injectTokens = getInjectTokens(ctor);
-
+      
     // Resolve parameters in correct order
     const injected: { [key: string | number]: any } = {};
     Object.keys(injectTokens)
       .map(i => {
         const token = injectTokens[Number(i)];
         const nextStack = [...stack, descriptor.token];
+
         // If token is an array type, resolve all (like IEnumerable<T> in .NET)
-        if (Array.isArray(token)) {
-          injected[i] = this.getServices(token[0], undefined, nextStack); // assume array of one token type
+        if (token.kind === "multi") {
+          injected[i] = this.getServices(token.tokens[0], undefined, nextStack);
         } else {
-          injected[i] = this.getService(token, undefined, nextStack);
+          injected[i] = this.getService(token.token, undefined, nextStack);
         }
       });
     
@@ -258,12 +261,15 @@ export class ServiceProvider implements IServiceProvider {
     visited: Set<Token>,
     rootLifetime: ServiceLifetime
   ) {
+    // Factor returns early, already a valid instance should be created
+    if (descriptor.factory)
+      return;
+
     const ctor = descriptor.implementation!;
     const injectTokens = getInjectTokens(ctor);
 
     for (const key of Object.keys(injectTokens)) {
-      const token = injectTokens[Number(key)];
-      // const depDesc = this.getDescriptor(token);
+      const token = getInjectToken(injectTokens, key);
       const depDesc = this.getAllDescriptors(token).at(-1);
 
       if (!depDesc) continue;

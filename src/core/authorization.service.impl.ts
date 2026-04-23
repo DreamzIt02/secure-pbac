@@ -46,7 +46,7 @@ export class DefaultAuthorizationService implements IAuthorizationService {
     @Inject(AuthorizationHandlerProvider) handlers     : IAuthorizationHandlerProvider,
     @Inject(AuthorizationHandlerContextFactory) factory: IAuthorizationHandlerContextFactory,
     @Inject(AuthorizationEvaluator) evaluator          : IAuthorizationEvaluator,
-    options                                            : IOptions<AuthorizationOptions>,
+    @Inject(AuthorizationOptions) options              : IOptions<AuthorizationOptions>,
   ) {
     if (!options || !policyProvider || !handlers || !factory || !evaluator) {
       throw new Error('ArgumentNullException');
@@ -153,7 +153,7 @@ export class DefaultAuthorizationServiceImpl extends DefaultAuthorizationService
     @Inject(AuthorizationHandlerProvider) handlers     : IAuthorizationHandlerProvider,
     @Inject(AuthorizationHandlerContextFactory) factory: IAuthorizationHandlerContextFactory,
     @Inject(AuthorizationEvaluator) evaluator          : IAuthorizationEvaluator,
-    options                                            : IOptions<AuthorizationOptions>,
+    @Inject(AuthorizationOptions) options              : IOptions<AuthorizationOptions>,
     @Inject(AuthorizationMetrics) metrics              : AuthorizationMetrics
   ) {
     super(policyProvider, handlers, factory, evaluator, options);

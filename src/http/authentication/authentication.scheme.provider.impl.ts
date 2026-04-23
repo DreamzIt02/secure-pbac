@@ -1,4 +1,5 @@
 
+import { Inject } from "../../decorators/index.js";
 import { InvalidOperationException } from "../../types/exception.js";
 import { IOptions } from "../../types/index.js";
 import { AuthenticationOptions } from "./authentication.options.js";
@@ -27,14 +28,14 @@ export class AuthenticationSchemeProvider implements IAuthenticationSchemeProvid
     /// </summary>
     /// <param name="options">The <see cref="AuthenticationOptions"/> options.</param>
     /// <param name="schemes">The dictionary used to store authentication schemes.</param>
-    constructor(options: IOptions<AuthenticationOptions>, schemes?: Map<string, AuthenticationScheme>) {
+    constructor(@Inject(AuthenticationOptions) options: IOptions<AuthenticationOptions>, schemes?: Map<string, AuthenticationScheme>) {
         this._options = options.value;
         this._schemes = schemes ?? new Map<string, AuthenticationScheme>();
 
         // Initialize schemes from options
         for (const builder of this._options.schemes) {
-        const scheme = builder.build();
-        this.addScheme(scheme);
+            const scheme = builder.build();
+            this.addScheme(scheme);
         }
     }
 

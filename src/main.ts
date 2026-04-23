@@ -1,4 +1,4 @@
-import { App, AppRole, AppUser } from "./App.js";
+import { App, AppRole, AppUser } from "./App.module.js";
 import { appRoutes } from "./App.routes.js";
 import { DbContextOptions } from "./contexts/index.js";
 import { IdentityDbContext, NodeDbContext } from "./core/contexts/index.js";
@@ -39,14 +39,14 @@ app.addDbContext(
 });
 
 // First: Register services
-app.registerServices((services: ServiceCollection) => {
+app.configureServices((services: ServiceCollection) => {
     // Register Services
     
     return services;
 });
 
 // Second: Register routes
-app.registerRoutes((routes: RouteCollection) => {
+app.configureRoutes((routes: RouteCollection) => {
     // Register Routes
     
     return appRoutes(routes);
